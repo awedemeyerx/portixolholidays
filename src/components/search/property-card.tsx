@@ -1,4 +1,5 @@
-import Image from 'next/image';
+/* eslint-disable @next/next/no-img-element */
+
 import Link from 'next/link';
 import { formatMoney } from '@/lib/holidays/dates';
 import type { Locale, PropertySummary } from '@/lib/holidays/types';
@@ -19,10 +20,12 @@ type Props = {
 };
 
 export function PropertyCard({ property, locale, labels, queryString }: Props) {
+  const href = queryString ? `/${locale}/properties/${property.slug}?${queryString}` : `/${locale}/properties/${property.slug}`;
+
   return (
     <article className="glass-card grid gap-5 rounded-[2rem] p-4 md:grid-cols-[1.1fr_0.9fr] md:p-5">
       <div className="relative min-h-[260px] overflow-hidden rounded-[1.5rem]">
-        <Image src={property.heroImage} alt={property.title} fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
+        <img src={property.heroImage} alt={property.title} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
       </div>
       <div className="flex flex-col justify-between gap-6">
         <div className="space-y-4">
@@ -57,7 +60,7 @@ export function PropertyCard({ property, locale, labels, queryString }: Props) {
             </p>
           </div>
           <Link
-            href={`/${locale}/properties/${property.slug}?${queryString}`}
+            href={href}
             className="rounded-full bg-ink px-5 py-3 text-center text-sm font-medium text-foam transition hover:bg-sea"
           >
             {labels.select}

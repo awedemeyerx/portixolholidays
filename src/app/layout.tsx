@@ -5,6 +5,11 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Portixol Holidays',
   description: 'Holiday rentals in Mallorca with a custom booking engine powered by Beds24 data.',
+  icons: {
+    icon: '/portixol-icon.png',
+    shortcut: '/portixol-icon.png',
+    apple: '/portixol-icon.png',
+  },
 };
 
 export default function RootLayout({

@@ -150,6 +150,14 @@ export async function fetchBeds24Offers(query: SearchQuery, roomIds: number[]) {
   return entries.map(normalizeOfferEntry).filter(Boolean) as Beds24Offer[];
 }
 
+export async function fetchBeds24PropertyCatalog() {
+  return beds24Request<unknown>('/properties', {
+    searchParams: {
+      includeAllRooms: 'true',
+    },
+  });
+}
+
 export async function fetchBeds24Availability(query: SearchQuery, roomId: number) {
   const raw = await beds24Request<unknown>('/inventory/rooms/availability', {
     searchParams: {

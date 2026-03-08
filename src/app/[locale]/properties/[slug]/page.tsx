@@ -1,5 +1,6 @@
+/* eslint-disable @next/next/no-img-element */
+
 import type { Metadata } from 'next';
-import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { BookingPanel } from '@/components/property/booking-panel';
 import { formatMoney } from '@/lib/holidays/dates';
@@ -45,6 +46,17 @@ export default async function PropertyPage({ params, searchParams }: Props) {
     guests: rawSearchParams.guests,
   });
 
+  const rawGuests = typeof rawSearchParams.guests === 'string' ? Number(rawSearchParams.guests) : NaN;
+  const selectedGuests = Number.isFinite(rawGuests) && rawGuests > 0 ? rawGuests : 2;
+  const selection =
+    typeof rawSearchParams.checkIn === 'string' || typeof rawSearchParams.checkOut === 'string'
+      ? {
+          checkIn: typeof rawSearchParams.checkIn === 'string' ? rawSearchParams.checkIn : '',
+          checkOut: typeof rawSearchParams.checkOut === 'string' ? rawSearchParams.checkOut : '',
+          guests: selectedGuests,
+        }
+      : null;
+
   const quote = parsed.success ? await getPropertyQuoteBySlug(slug, parsed.data) : null;
   const bookingState = typeof rawSearchParams.booking === 'string' ? rawSearchParams.booking : null;
 
@@ -53,7 +65,7 @@ export default async function PropertyPage({ params, searchParams }: Props) {
       <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-[1.1fr_0.9fr]">
         <section className="space-y-6">
           <div className="overflow-hidden rounded-[2rem]">
-            <Image src={property.heroImage} alt={localized.title} width={1600} height={1000} className="h-[420px] w-full object-cover" priority />
+            <img src={property.heroImage} alt={localized.title} className="h-[420px] w-full object-cover" loading="eager" />
           </div>
 
           <div className="glass-card rounded-[2rem] p-6 md:p-8">
@@ -114,7 +126,7 @@ export default async function PropertyPage({ params, searchParams }: Props) {
           <div className="grid gap-4 md:grid-cols-3">
             {property.gallery.map((image, index) => (
               <div key={`${image}-${index}`} className="overflow-hidden rounded-[1.5rem]">
-                <Image src={image} alt={`${localized.title} ${index + 1}`} width={900} height={700} className="h-full w-full object-cover" />
+                <img src={image} alt={`${localized.title} ${index + 1}`} className="h-full w-full object-cover" loading="lazy" />
               </div>
             ))}
           </div>
@@ -135,6 +147,7 @@ export default async function PropertyPage({ params, searchParams }: Props) {
           <BookingPanel
             locale={locale}
             slug={slug}
+            selection={selection}
             query={parsed.success ? { checkIn: parsed.data.checkIn, checkOut: parsed.data.checkOut, guests: parsed.data.guests } : null}
             quote={quote}
           />

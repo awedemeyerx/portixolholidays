@@ -48,6 +48,23 @@ export type PropertyRecord = {
   blockedRanges: BlockedRange[];
 };
 
+export type Beds24ContentRecord = {
+  id: string;
+  beds24PropertyId: number;
+  beds24RoomId: number;
+  title: Localized;
+  summary: Localized;
+  description: Localized;
+  locationLabel: Localized;
+  heroImage: string;
+  gallery: string[];
+  bedrooms?: number;
+  bathrooms?: number;
+  maxGuests?: number;
+  lastSyncedAt: string;
+  raw?: Record<string, unknown>;
+};
+
 export type SiteSettingsRecord = {
   brandName: string;
   supportEmail: string;

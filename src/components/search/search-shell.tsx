@@ -4,7 +4,9 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { diffNights } from '@/lib/holidays/dates';
 import { PropertyCard } from './property-card';
+import { StaySearchForm } from './stay-search-form';
 import type { AlternativeWindow, Locale, PropertySummary, SearchResponse } from '@/lib/holidays/types';
 
 type FeaturedProperty = {
@@ -31,16 +33,6 @@ type Props = {
   featuredProperties: FeaturedProperty[];
 };
 
-function todayKey() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function nextWeekKey() {
-  const date = new Date();
-  date.setDate(date.getDate() + 7);
-  return date.toISOString().slice(0, 10);
-}
-
 export function SearchShell({ locale, hero, featuredProperties }: Props) {
   const t = useTranslations('Search');
   const router = useRouter();
@@ -56,10 +48,17 @@ export function SearchShell({ locale, hero, featuredProperties }: Props) {
     const guests = searchParams.get('guests') ?? '';
     return { checkIn, checkOut, guests };
   }, [searchParams]);
+  const selectedGuests = useMemo(() => {
+    const guests = Number(currentQuery.guests);
+    return Number.isFinite(guests) && guests > 0 ? guests : 2;
+  }, [currentQuery.guests]);
 
   useEffect(() => {
     const hasCompleteQuery = currentQuery.checkIn && currentQuery.checkOut && currentQuery.guests;
-    if (!hasCompleteQuery) {
+    const hasInvalidRange =
+      currentQuery.checkIn && currentQuery.checkOut && diffNights(currentQuery.checkIn, currentQuery.checkOut) <= 0;
+
+    if (!hasCompleteQuery || hasInvalidRange) {
       setResponse(null);
       setError(null);
       return;
@@ -98,13 +97,19 @@ export function SearchShell({ locale, hero, featuredProperties }: Props) {
     return params.toString();
   }, [currentQuery]);
 
-  function onSubmit(formData: FormData) {
+  function onSubmit(nextQuery: { checkIn: string; checkOut: string; guests: number }) {
     const params = new URLSearchParams();
-    params.set('checkIn', String(formData.get('checkIn') || ''));
-    params.set('checkOut', String(formData.get('checkOut') || ''));
-    params.set('guests', String(formData.get('guests') || '2'));
+    params.set('checkIn', nextQuery.checkIn);
+    params.set('checkOut', nextQuery.checkOut);
+    params.set('guests', String(nextQuery.guests));
     startTransition(() => {
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    });
+  }
+
+  function onClear() {
+    startTransition(() => {
+      router.replace(pathname, { scroll: false });
     });
   }
 
@@ -112,7 +117,7 @@ export function SearchShell({ locale, hero, featuredProperties }: Props) {
     const params = new URLSearchParams();
     params.set('checkIn', window.checkIn);
     params.set('checkOut', window.checkOut);
-    params.set('guests', currentQuery.guests || '2');
+    params.set('guests', String(selectedGuests));
     startTransition(() => {
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     });
@@ -131,48 +136,28 @@ export function SearchShell({ locale, hero, featuredProperties }: Props) {
           </div>
 
           <div className="glass-card rounded-[2rem] p-5 md:p-7">
-            <form action={onSubmit} className="grid gap-4">
-              <label className="grid gap-2">
-                <span className="label-caps text-[11px] text-sea">{t('arrival')}</span>
-                <input
-                  type="date"
-                  name="checkIn"
-                  required
-                  defaultValue={currentQuery.checkIn || todayKey()}
-                  min={todayKey()}
-                  className="soft-ring rounded-2xl border-0 bg-white px-4 py-3"
-                />
-              </label>
-              <label className="grid gap-2">
-                <span className="label-caps text-[11px] text-sea">{t('departure')}</span>
-                <input
-                  type="date"
-                  name="checkOut"
-                  required
-                  defaultValue={currentQuery.checkOut || nextWeekKey()}
-                  min={todayKey()}
-                  className="soft-ring rounded-2xl border-0 bg-white px-4 py-3"
-                />
-              </label>
-              <label className="grid gap-2">
-                <span className="label-caps text-[11px] text-sea">{t('guests')}</span>
-                <select name="guests" defaultValue={currentQuery.guests || '2'} className="soft-ring rounded-2xl border-0 bg-white px-4 py-3">
-                  {[1, 2, 3, 4, 5, 6].map((value) => (
-                    <option key={value} value={value}>
-                      {value}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button
-                type="submit"
-                className="rounded-full bg-ink px-5 py-4 text-sm font-medium text-foam transition hover:bg-sea disabled:opacity-60"
-                disabled={isPending}
-              >
-                {isPending ? t('loading') : t('submit')}
-              </button>
-              <p className="text-sm leading-6 text-ink/65">{hero.hint}</p>
-            </form>
+            <StaySearchForm
+              locale={locale}
+              initialCheckIn={currentQuery.checkIn}
+              initialCheckOut={currentQuery.checkOut}
+              initialGuests={selectedGuests}
+              submitLabel={t('submit')}
+              loadingLabel={t('loading')}
+              helperText={hero.hint}
+              isPending={isPending}
+              onSubmit={onSubmit}
+              onClear={onClear}
+              labels={{
+                arrival: t('arrival'),
+                departure: t('departure'),
+                guests: t('guests'),
+                selectArrival: t('selectArrival'),
+                selectDeparture: t('selectDeparture'),
+                invalidRange: t('invalidRange'),
+                resetDates: t('resetDates'),
+                nights: t('nights'),
+              }}
+            />
           </div>
         </div>
       </section>

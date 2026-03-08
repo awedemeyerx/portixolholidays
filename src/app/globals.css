@@ -3,12 +3,13 @@
 @tailwind utilities;
 
 :root {
-  --sand: #f2e7d7;
-  --ink: #11334a;
-  --sea: #1e728d;
-  --terracotta: #be6d46;
-  --foam: #f9f5ef;
-  --mist: #6f7b85;
+  --sand: #f3e6d4;
+  --ink: #15354a;
+  --sea: #3e92a8;
+  --terracotta: #c77c5b;
+  --foam: #fbf6ee;
+  --mist: #718089;
+  --sky: #dbeff4;
 }
 
 * {
@@ -23,11 +24,12 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, rgba(190, 109, 70, 0.18), transparent 28%),
-    radial-gradient(circle at top right, rgba(30, 114, 141, 0.18), transparent 24%),
-    linear-gradient(180deg, #fff9f0 0%, #f9f1e6 48%, #f4ecdf 100%);
+    radial-gradient(circle at top left, rgba(199, 124, 91, 0.18), transparent 28%),
+    radial-gradient(circle at top right, rgba(62, 146, 168, 0.18), transparent 26%),
+    radial-gradient(circle at 18% 78%, rgba(62, 146, 168, 0.09), transparent 24%),
+    linear-gradient(180deg, #fffaf3 0%, #fbf1e5 50%, #f5efe3 100%);
   color: var(--ink);
-  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  font-family: "Avenir Next", "Trebuchet MS", sans-serif;
 }
 
 a {
@@ -64,8 +66,23 @@ select {
   mask-image: linear-gradient(180deg, black 30%, transparent 100%);
 }
 
+.page-shell::after {
+  content: '';
+  position: fixed;
+  inset: auto 0 0 0;
+  height: 26vh;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 15% 45%, rgba(62, 146, 168, 0.12), transparent 24%),
+    radial-gradient(circle at 60% 10%, rgba(199, 124, 91, 0.09), transparent 22%),
+    linear-gradient(180deg, transparent 0%, rgba(219, 239, 244, 0.35) 100%);
+  opacity: 0.9;
+}
+
 .glass-card {
-  background: rgba(255, 249, 240, 0.78);
+  background:
+    linear-gradient(180deg, rgba(255, 251, 245, 0.88), rgba(255, 246, 236, 0.74)),
+    rgba(255, 249, 240, 0.78);
   backdrop-filter: blur(18px);
   border: 1px solid rgba(17, 51, 74, 0.08);
   box-shadow: 0 28px 80px rgba(17, 51, 74, 0.12);
@@ -89,4 +106,77 @@ select {
 
 .soft-ring {
   box-shadow: 0 0 0 1px rgba(17, 51, 74, 0.08);
+}
+
+.stay-boundary {
+  border: 1px solid rgba(21, 53, 74, 0.08);
+  border-radius: 1.4rem;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 1rem 1.1rem;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.stay-boundary:hover {
+  border-color: rgba(62, 146, 168, 0.24);
+  transform: translateY(-1px);
+}
+
+.stay-boundary-active {
+  border-color: rgba(62, 146, 168, 0.42);
+  box-shadow: 0 0 0 3px rgba(62, 146, 168, 0.12);
+}
+
+.stay-boundary-invalid {
+  border-color: rgba(199, 124, 91, 0.34);
+  box-shadow: 0 0 0 3px rgba(199, 124, 91, 0.09);
+}
+
+.stay-day {
+  aspect-ratio: 1 / 1;
+  border: 0;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--ink);
+  transition: transform 160ms ease, background 160ms ease, color 160ms ease, opacity 160ms ease;
+}
+
+.stay-day:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: rgba(62, 146, 168, 0.09);
+}
+
+.stay-day-current {
+  opacity: 1;
+}
+
+.stay-day-muted {
+  opacity: 0.38;
+}
+
+.stay-day-disabled {
+  cursor: not-allowed;
+  opacity: 0.2;
+}
+
+.stay-day-today {
+  box-shadow: inset 0 0 0 1px rgba(62, 146, 168, 0.36);
+}
+
+.stay-day-range {
+  background: rgba(62, 146, 168, 0.16);
+}
+
+.stay-day-invalid-range {
+  background: rgba(199, 124, 91, 0.18);
+  color: var(--terracotta);
+}
+
+.stay-day-boundary {
+  background: linear-gradient(180deg, rgba(62, 146, 168, 0.96), rgba(31, 112, 129, 0.96));
+  color: var(--foam);
+}
+
+.stay-day-invalid-boundary {
+  background: linear-gradient(180deg, rgba(199, 124, 91, 0.96), rgba(171, 95, 69, 0.96));
+  color: var(--foam);
 }
