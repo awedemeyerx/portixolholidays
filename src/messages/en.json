@@ -1,0 +1,61 @@
+{
+  "Header": {
+    "properties": "Properties",
+    "faq": "FAQ",
+    "contact": "Contact"
+  },
+  "Search": {
+    "arrival": "Arrival",
+    "departure": "Departure",
+    "guests": "Guests",
+    "submit": "Show available homes",
+    "loading": "Searching...",
+    "resultsTitle": "Available homes",
+    "resultsSubtitle": "Every result has been checked for your selected stay.",
+    "empty": "No homes are available",
+    "alternativeTitle": "Alternative date windows",
+    "availableCount": "available",
+    "pricePerNight": "per night",
+    "total": "Stay total",
+    "deposit": "Deposit",
+    "select": "View property",
+    "beds": "Bedrooms",
+    "baths": "Bathrooms",
+    "guestsMax": "max guests"
+  },
+  "Property": {
+    "overview": "Overview",
+    "amenities": "Amenities",
+    "rules": "House rules",
+    "booking": "Booking",
+    "bookingHint": "Your selected dates are rechecked live before payment.",
+    "quoteMissing": "Please choose dates and guests on the home page first.",
+    "guestDetails": "Guest details",
+    "legal": "Consent",
+    "summary": "Summary",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "email": "Email",
+    "phone": "Phone",
+    "notes": "Message",
+    "acceptTerms": "I accept the booking terms.",
+    "acceptPrivacy": "I accept the privacy notice.",
+    "payDeposit": "Pay deposit",
+    "processing": "Redirecting...",
+    "nights": "Nights",
+    "cancellation": "Cancellation",
+    "success": "Payment received. We are now finalising the booking.",
+    "cancelled": "Checkout was cancelled.",
+    "perNight": "per night",
+    "stayTotal": "stay total",
+    "depositShort": "deposit",
+    "guestsShort": "guests",
+    "amenitiesTitle": "Amenities",
+    "rulesTitle": "House rules"
+  },
+  "Footer": {
+    "imprint": "Imprint",
+    "privacy": "Privacy",
+    "terms": "Terms"
+  }
+}

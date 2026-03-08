@@ -1,0 +1,61 @@
+{
+  "Header": {
+    "properties": "Objekte",
+    "faq": "FAQ",
+    "contact": "Kontakt"
+  },
+  "Search": {
+    "arrival": "Anreise",
+    "departure": "Abreise",
+    "guests": "Gäste",
+    "submit": "Verfügbare Häuser anzeigen",
+    "loading": "Suche läuft...",
+    "resultsTitle": "Freie Häuser",
+    "resultsSubtitle": "Alle Ergebnisse sind für deinen Zeitraum geprüft.",
+    "empty": "Keine Objekte frei",
+    "alternativeTitle": "Alternative Zeitfenster",
+    "availableCount": "frei",
+    "pricePerNight": "pro Nacht",
+    "total": "Gesamtpreis",
+    "deposit": "Anzahlung",
+    "select": "Objekt ansehen",
+    "beds": "Schlafzimmer",
+    "baths": "Bäder",
+    "guestsMax": "max. Gäste"
+  },
+  "Property": {
+    "overview": "Überblick",
+    "amenities": "Ausstattung",
+    "rules": "Hausregeln",
+    "booking": "Buchung",
+    "bookingHint": "Deine gewählten Daten werden vor der Zahlung nochmals live geprüft.",
+    "quoteMissing": "Bitte zuerst Zeitraum und Gäste über die Startseite wählen.",
+    "guestDetails": "Gastdaten",
+    "legal": "Einwilligung",
+    "summary": "Zusammenfassung",
+    "firstName": "Vorname",
+    "lastName": "Nachname",
+    "email": "E-Mail",
+    "phone": "Telefon",
+    "notes": "Nachricht",
+    "acceptTerms": "Ich akzeptiere die Buchungsbedingungen.",
+    "acceptPrivacy": "Ich akzeptiere die Datenschutzhinweise.",
+    "payDeposit": "Anzahlung zahlen",
+    "processing": "Weiterleitung...",
+    "nights": "Nächte",
+    "cancellation": "Stornierung",
+    "success": "Die Zahlung wurde empfangen. Wir bestätigen die Buchung jetzt endgültig.",
+    "cancelled": "Der Checkout wurde abgebrochen.",
+    "perNight": "pro Nacht",
+    "stayTotal": "Gesamtpreis",
+    "depositShort": "Anzahlung",
+    "guestsShort": "Gäste",
+    "amenitiesTitle": "Ausstattung",
+    "rulesTitle": "Hausregeln"
+  },
+  "Footer": {
+    "imprint": "Impressum",
+    "privacy": "Datenschutz",
+    "terms": "AGB"
+  }
+}

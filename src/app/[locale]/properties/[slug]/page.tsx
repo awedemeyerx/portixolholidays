@@ -1,0 +1,145 @@
+import type { Metadata } from 'next';
+import Image from 'next/image';
+import { notFound } from 'next/navigation';
+import { BookingPanel } from '@/components/property/booking-panel';
+import { formatMoney } from '@/lib/holidays/dates';
+import { localizeProperty } from '@/lib/holidays/localize';
+import { safeLocale } from '@/lib/holidays/locale';
+import { localeAlternates } from '@/lib/holidays/seo';
+import { getPropertyBySlug } from '@/lib/holidays/services/cms';
+import { getPropertyQuoteBySlug } from '@/lib/holidays/services/quote';
+import { loadMessages } from '@/lib/messages';
+import { searchQuerySchema } from '@/lib/holidays/validation';
+
+type Props = {
+  params: Promise<{ locale: string; slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { locale: rawLocale, slug } = await params;
+  const locale = safeLocale(rawLocale);
+  const property = await getPropertyBySlug(slug, locale);
+  if (!property) return {};
+  const localized = localizeProperty(property, locale);
+
+  return {
+    title: localized.seoTitle,
+    description: localized.seoDescription,
+    alternates: localeAlternates(`/properties/${localized.slug}`),
+  };
+}
+
+export default async function PropertyPage({ params, searchParams }: Props) {
+  const [{ locale: rawLocale, slug }, rawSearchParams] = await Promise.all([params, searchParams]);
+  const locale = safeLocale(rawLocale);
+  const property = await getPropertyBySlug(slug, locale);
+  if (!property) notFound();
+  const messages = await loadMessages(locale);
+
+  const localized = localizeProperty(property, locale);
+  const parsed = searchQuerySchema.safeParse({
+    locale,
+    checkIn: rawSearchParams.checkIn,
+    checkOut: rawSearchParams.checkOut,
+    guests: rawSearchParams.guests,
+  });
+
+  const quote = parsed.success ? await getPropertyQuoteBySlug(slug, parsed.data) : null;
+  const bookingState = typeof rawSearchParams.booking === 'string' ? rawSearchParams.booking : null;
+
+  return (
+    <div className="px-4 pb-12 pt-4 md:px-8">
+      <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-[1.1fr_0.9fr]">
+        <section className="space-y-6">
+          <div className="overflow-hidden rounded-[2rem]">
+            <Image src={property.heroImage} alt={localized.title} width={1600} height={1000} className="h-[420px] w-full object-cover" priority />
+          </div>
+
+          <div className="glass-card rounded-[2rem] p-6 md:p-8">
+            <p className="label-caps text-xs text-sea">{localized.locationLabel}</p>
+            <h1 className="mt-3 font-serif text-5xl leading-none">{localized.title}</h1>
+            <p className="mt-4 max-w-3xl text-base leading-8 text-ink/72">{localized.description}</p>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              {localized.highlights.map((highlight) => (
+                <span key={highlight} className="rounded-full bg-sea/10 px-3 py-2 text-sm text-sea">
+                  {highlight}
+                </span>
+              ))}
+            </div>
+
+            {quote ? (
+              <div className="mt-8 grid gap-4 rounded-[1.5rem] bg-white/70 p-4 md:grid-cols-4">
+                <div>
+                  <div className="label-caps text-[11px] text-sea">{messages.Property.perNight}</div>
+                  <div className="mt-2 text-lg font-medium">{formatMoney(quote.quote.pricePerNight, quote.quote.currency, locale)}</div>
+                </div>
+                <div>
+                  <div className="label-caps text-[11px] text-sea">{messages.Property.stayTotal}</div>
+                  <div className="mt-2 text-lg font-medium">{formatMoney(quote.quote.totalPrice, quote.quote.currency, locale)}</div>
+                </div>
+                <div>
+                  <div className="label-caps text-[11px] text-sea">{messages.Property.depositShort}</div>
+                  <div className="mt-2 text-lg font-medium">{formatMoney(quote.quote.depositAmount, quote.quote.currency, locale)}</div>
+                </div>
+                <div>
+                  <div className="label-caps text-[11px] text-sea">{messages.Property.guestsShort}</div>
+                  <div className="mt-2 text-lg font-medium">{property.maxGuests}</div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <article className="glass-card rounded-[2rem] p-6">
+              <p className="label-caps text-xs text-sea">{messages.Property.amenitiesTitle}</p>
+              <ul className="mt-4 grid gap-3 text-sm text-ink/72">
+                {localized.amenities.map((amenity) => (
+                  <li key={amenity}>{amenity}</li>
+                ))}
+              </ul>
+            </article>
+
+            <article className="glass-card rounded-[2rem] p-6">
+              <p className="label-caps text-xs text-sea">{messages.Property.rulesTitle}</p>
+              <ul className="mt-4 grid gap-3 text-sm text-ink/72">
+                {localized.houseRules.map((rule) => (
+                  <li key={rule}>{rule}</li>
+                ))}
+              </ul>
+            </article>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            {property.gallery.map((image, index) => (
+              <div key={`${image}-${index}`} className="overflow-hidden rounded-[1.5rem]">
+                <Image src={image} alt={`${localized.title} ${index + 1}`} width={900} height={700} className="h-full w-full object-cover" />
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          {bookingState === 'success' ? (
+            <div className="rounded-[1.5rem] bg-sea/10 px-5 py-4 text-sm text-sea">
+              {messages.Property.success}
+            </div>
+          ) : null}
+          {bookingState === 'cancelled' ? (
+            <div className="rounded-[1.5rem] bg-terracotta/10 px-5 py-4 text-sm text-terracotta">
+              {messages.Property.cancelled}
+            </div>
+          ) : null}
+
+          <BookingPanel
+            locale={locale}
+            slug={slug}
+            query={parsed.success ? { checkIn: parsed.data.checkIn, checkOut: parsed.data.checkOut, guests: parsed.data.guests } : null}
+            quote={quote}
+          />
+        </section>
+      </div>
+    </div>
+  );
+}

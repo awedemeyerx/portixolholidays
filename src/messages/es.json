@@ -1,0 +1,61 @@
+{
+  "Header": {
+    "properties": "Alojamientos",
+    "faq": "FAQ",
+    "contact": "Contacto"
+  },
+  "Search": {
+    "arrival": "Llegada",
+    "departure": "Salida",
+    "guests": "Huéspedes",
+    "submit": "Ver casas disponibles",
+    "loading": "Buscando...",
+    "resultsTitle": "Casas disponibles",
+    "resultsSubtitle": "Cada resultado ha sido comprobado para tu estancia.",
+    "empty": "No hay alojamientos libres",
+    "alternativeTitle": "Ventanas alternativas",
+    "availableCount": "disponibles",
+    "pricePerNight": "por noche",
+    "total": "Total estancia",
+    "deposit": "Depósito",
+    "select": "Ver alojamiento",
+    "beds": "Dormitorios",
+    "baths": "Baños",
+    "guestsMax": "máx. huéspedes"
+  },
+  "Property": {
+    "overview": "Resumen",
+    "amenities": "Comodidades",
+    "rules": "Normas",
+    "booking": "Reserva",
+    "bookingHint": "Las fechas elegidas se validan otra vez en tiempo real antes del pago.",
+    "quoteMissing": "Primero elige fechas y huéspedes en la página inicial.",
+    "guestDetails": "Datos del huésped",
+    "legal": "Consentimiento",
+    "summary": "Resumen",
+    "firstName": "Nombre",
+    "lastName": "Apellidos",
+    "email": "Correo",
+    "phone": "Teléfono",
+    "notes": "Mensaje",
+    "acceptTerms": "Acepto las condiciones de reserva.",
+    "acceptPrivacy": "Acepto la política de privacidad.",
+    "payDeposit": "Pagar depósito",
+    "processing": "Redirigiendo...",
+    "nights": "Noches",
+    "cancellation": "Cancelación",
+    "success": "Pago recibido. Ahora confirmamos la reserva de forma definitiva.",
+    "cancelled": "El checkout fue cancelado.",
+    "perNight": "por noche",
+    "stayTotal": "total estancia",
+    "depositShort": "depósito",
+    "guestsShort": "huéspedes",
+    "amenitiesTitle": "Comodidades",
+    "rulesTitle": "Normas"
+  },
+  "Footer": {
+    "imprint": "Aviso legal",
+    "privacy": "Privacidad",
+    "terms": "Condiciones"
+  }
+}
