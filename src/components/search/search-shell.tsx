@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -267,10 +268,16 @@ function LinkCard({ locale, property }: { locale: Locale; property: FeaturedProp
   const t = useTranslations('Search');
   return (
     <Link href={`/${locale}/properties/${property.slug}`} className="glass-card block overflow-hidden rounded-[2rem] transition hover:-translate-y-1">
-      <div
-        className="h-64 bg-cover bg-center"
-        style={{ backgroundImage: `linear-gradient(180deg, transparent 10%, rgba(17, 51, 74, 0.6) 100%), url(${property.heroImage})` }}
-      />
+      <div className="relative h-64 overflow-hidden">
+        <Image
+          src={property.heroImage}
+          alt={property.title}
+          fill
+          sizes="(max-width: 767px) 100vw, 33vw"
+          className="object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-ink/70" />
+      </div>
       <div className="space-y-3 p-5">
         <p className="label-caps text-[11px] text-sea">{property.locationLabel}</p>
         <h3 className="font-serif text-2xl">{property.title}</h3>

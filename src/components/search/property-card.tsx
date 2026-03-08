@@ -1,5 +1,4 @@
-/* eslint-disable @next/next/no-img-element */
-
+import Image from 'next/image';
 import Link from 'next/link';
 import { formatMoney } from '@/lib/holidays/dates';
 import type { Locale, PropertySummary } from '@/lib/holidays/types';
@@ -25,7 +24,13 @@ export function PropertyCard({ property, locale, labels, queryString }: Props) {
   return (
     <article className="glass-card grid gap-5 rounded-[2rem] p-4 md:grid-cols-[1.1fr_0.9fr] md:p-5">
       <div className="relative min-h-[260px] overflow-hidden rounded-[1.5rem]">
-        <img src={property.heroImage} alt={property.title} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+        <Image
+          src={property.heroImage}
+          alt={property.title}
+          fill
+          sizes="(max-width: 767px) 100vw, 50vw"
+          className="object-cover"
+        />
       </div>
       <div className="flex flex-col justify-between gap-6">
         <div className="space-y-4">

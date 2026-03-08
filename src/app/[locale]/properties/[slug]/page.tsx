@@ -1,5 +1,4 @@
-/* eslint-disable @next/next/no-img-element */
-
+import Image from 'next/image';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { BookingPanel } from '@/components/property/booking-panel';
@@ -64,8 +63,15 @@ export default async function PropertyPage({ params, searchParams }: Props) {
     <div className="px-4 pb-12 pt-4 md:px-8">
       <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-[1.1fr_0.9fr]">
         <section className="space-y-6">
-          <div className="overflow-hidden rounded-[2rem]">
-            <img src={property.heroImage} alt={localized.title} className="h-[420px] w-full object-cover" loading="eager" />
+          <div className="relative h-[420px] overflow-hidden rounded-[2rem]">
+            <Image
+              src={property.heroImage}
+              alt={localized.title}
+              fill
+              priority
+              sizes="(max-width: 767px) 100vw, 66vw"
+              className="object-cover"
+            />
           </div>
 
           <div className="glass-card rounded-[2rem] p-6 md:p-8">
@@ -125,8 +131,14 @@ export default async function PropertyPage({ params, searchParams }: Props) {
 
           <div className="grid gap-4 md:grid-cols-3">
             {property.gallery.map((image, index) => (
-              <div key={`${image}-${index}`} className="overflow-hidden rounded-[1.5rem]">
-                <img src={image} alt={`${localized.title} ${index + 1}`} className="h-full w-full object-cover" loading="lazy" />
+              <div key={`${image}-${index}`} className="relative aspect-[4/3] overflow-hidden rounded-[1.5rem]">
+                <Image
+                  src={image}
+                  alt={`${localized.title} ${index + 1}`}
+                  fill
+                  sizes="(max-width: 767px) 100vw, 33vw"
+                  className="object-cover"
+                />
               </div>
             ))}
           </div>

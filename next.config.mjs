@@ -17,6 +17,22 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'images.ctfassets.net',
       },
+      {
+        protocol: 'https',
+        hostname: 'media.xmlcal.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'a0.muscache.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'portixolholidays.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.portixolholidays.com',
+      },
     ],
   },
 };
