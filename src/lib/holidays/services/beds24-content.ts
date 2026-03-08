@@ -291,6 +291,60 @@ function normalizeLookupValue(value: string) {
     .replace(/^-+|-+$/g, '');
 }
 
+function fallbackLocalized(value: string): Localized {
+  return { de: value, en: value, es: value };
+}
+
+function localizeWithFallback(value: Localized, fallback: string) {
+  const normalizedFallback = fallback.trim();
+  return {
+    de: value.de || normalizedFallback,
+    en: value.en || normalizedFallback,
+    es: value.es || normalizedFallback,
+  };
+}
+
+function createSyntheticPropertyFromBeds24Content(content: Beds24ContentRecord): PropertyRecord {
+  const titleText = content.title.de || content.title.en || content.title.es || `Property ${content.beds24PropertyId}`;
+  const slug = normalizeLookupValue(titleText) || `property-${content.beds24PropertyId}`;
+  const summaryText = content.summary.de || content.summary.en || content.summary.es || titleText;
+  const descriptionText = content.description.de || content.description.en || content.description.es || summaryText;
+  const locationText = content.locationLabel.de || content.locationLabel.en || content.locationLabel.es || 'Mallorca';
+
+  return {
+    id: slug,
+    priority: 900,
+    beds24PropertyId: content.beds24PropertyId,
+    beds24RoomId: content.beds24RoomId,
+    slugs: fallbackLocalized(slug),
+    title: localizeWithFallback(content.title, titleText),
+    summary: localizeWithFallback(content.summary, summaryText),
+    description: localizeWithFallback(content.description, descriptionText),
+    locationLabel: localizeWithFallback(content.locationLabel, locationText),
+    distanceLabel: fallbackLocalized('Mallorca'),
+    bedrooms: content.bedrooms ?? 1,
+    bathrooms: content.bathrooms ?? 1,
+    maxGuests: content.maxGuests ?? 2,
+    heroImage: content.heroImage || '',
+    gallery: content.gallery,
+    highlights: [],
+    amenities: [],
+    houseRules: [],
+    pricing: {
+      nightly: 240,
+      cleaningFee: 90,
+      taxes: 25,
+      minStay: 3,
+      depositRate: 0.3,
+      currency: 'EUR',
+    },
+    cancellationSummary: fallbackLocalized('Free cancellation up to 14 days before arrival.'),
+    seoTitle: localizeWithFallback(content.title, titleText),
+    seoDescription: localizeWithFallback(content.summary, summaryText),
+    blockedRanges: [],
+  };
+}
+
 function matchBeds24Content(property: PropertyRecord, records: Beds24ContentRecord[]) {
   const slugKeys = Object.values(property.slugs).map(normalizeLookupValue);
   const titleKeys = Object.values(property.title).map(normalizeLookupValue);
@@ -354,8 +408,21 @@ export async function resolveBeds24ContentForProperties(properties: PropertyReco
   const persisted = await getBeds24ContentRecords();
   const live = persisted.length > 0 ? [] : await getLiveBeds24ContentRecords();
   const sourceRecords = persisted.length > 0 ? persisted : live;
+  const matchedKeys = new Set<string>();
 
-  return properties.map((property) => mergePropertyWithBeds24Content(property, matchBeds24Content(property, sourceRecords)));
+  const merged = properties.map((property) => {
+    const match = matchBeds24Content(property, sourceRecords);
+    if (match) {
+      matchedKeys.add(`${match.beds24PropertyId}:${match.beds24RoomId}`);
+    }
+    return mergePropertyWithBeds24Content(property, match);
+  });
+
+  const synthetic = sourceRecords
+    .filter((record) => !matchedKeys.has(`${record.beds24PropertyId}:${record.beds24RoomId}`))
+    .map((record) => createSyntheticPropertyFromBeds24Content(record));
+
+  return [...merged, ...synthetic];
 }
 
 export async function syncBeds24PropertyContent() {

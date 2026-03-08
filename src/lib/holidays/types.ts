@@ -246,6 +246,7 @@ export type PropertyImageImportItem = {
 export type PropertyImageImportResult = {
   propertyKey: string;
   imported: number;
+  failedUrls: string[];
   heroImageUrl: string;
   galleryUrls: string[];
   target: {

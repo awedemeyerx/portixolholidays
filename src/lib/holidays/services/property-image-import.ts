@@ -54,6 +54,7 @@ async function downloadImage(url: string, sourceKey: string, index: number) {
       accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
     },
     cache: 'no-store',
+    signal: AbortSignal.timeout(20_000),
   });
 
   if (!response.ok) {
@@ -242,8 +243,17 @@ export async function importPropertyImages(items: PropertyImageImportItem[]): Pr
     const alt = property.title.de || property.title.en || property.title.es || property.id;
 
     const mediaDocs = [];
+    const failedUrls: string[] = [];
     for (const [index, url] of imageUrls.entries()) {
-      mediaDocs.push(await ensureMediaDoc(payload, url, prefix, sourceKey, alt, index));
+      try {
+        mediaDocs.push(await ensureMediaDoc(payload, url, prefix, sourceKey, alt, index));
+      } catch {
+        failedUrls.push(url);
+      }
+    }
+
+    if (mediaDocs.length === 0) {
+      throw new Error(`No images could be imported for ${property.id}.`);
     }
 
     const heroDoc = mediaDocs[heroIndex];
@@ -273,6 +283,7 @@ export async function importPropertyImages(items: PropertyImageImportItem[]): Pr
     results.push({
       propertyKey: property.id,
       imported: mediaDocs.length,
+      failedUrls,
       heroImageUrl: heroDoc.url,
       galleryUrls: mediaDocs.map((doc) => doc.url),
       target: {
