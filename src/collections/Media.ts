@@ -17,6 +17,15 @@ export const Media: CollectionConfig = {
   },
   fields: [
     {
+      name: 'prefix',
+      type: 'text',
+      index: true,
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+      },
+    },
+    {
       name: 'alt',
       type: 'text',
       required: true,

@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { getPayloadClient } from '@/lib/payload';
 import { getProperties } from './cms';
+import { fallbackProperties } from '../data/fallback';
 import type { PropertyImageImportItem, PropertyImageImportResult, PropertyRecord } from '../types';
 
 type RawDoc = Record<string, unknown>;
@@ -112,6 +113,7 @@ async function findDocByBeds24(payload: NonNullable<Awaited<ReturnType<typeof ge
 async function ensureMediaDoc(
   payload: NonNullable<Awaited<ReturnType<typeof getPayloadClient>>>,
   url: string,
+  prefix: string,
   sourceKey: string,
   alt: string,
   index: number,
@@ -120,9 +122,18 @@ async function ensureMediaDoc(
     collection: 'media',
     limit: 1,
     where: {
-      sourceUrl: {
-        equals: url,
-      },
+      and: [
+        {
+          sourceUrl: {
+            equals: url,
+          },
+        },
+        {
+          prefix: {
+            equals: prefix,
+          },
+        },
+      ],
     },
   });
 
@@ -140,6 +151,7 @@ async function ensureMediaDoc(
     const created = (await payload.create({
       collection: 'media',
       data: {
+        prefix,
         alt,
         caption: sourceKey,
         sourceUrl: url,
@@ -226,11 +238,12 @@ export async function importPropertyImages(items: PropertyImageImportItem[]): Pr
       `r${property.beds24RoomId}`,
       toKeyPart(property.title.de || property.title.en || property.title.es || property.id),
     ].join('-');
+    const prefix = String(property.beds24PropertyId);
     const alt = property.title.de || property.title.en || property.title.es || property.id;
 
     const mediaDocs = [];
     for (const [index, url] of imageUrls.entries()) {
-      mediaDocs.push(await ensureMediaDoc(payload, url, sourceKey, alt, index));
+      mediaDocs.push(await ensureMediaDoc(payload, url, prefix, sourceKey, alt, index));
     }
 
     const heroDoc = mediaDocs[heroIndex];
@@ -271,4 +284,48 @@ export async function importPropertyImages(items: PropertyImageImportItem[]): Pr
   }
 
   return results;
+}
+
+export async function restorePropertyImagesFromFallback(beds24PropertyId: number) {
+  const payload = await getPayloadClient();
+  if (!payload) {
+    throw new Error('Payload CMS is not configured.');
+  }
+
+  const fallbackProperty = fallbackProperties.find((property) => property.beds24PropertyId === beds24PropertyId);
+  if (!fallbackProperty) {
+    throw new Error(`No fallback property found for Beds24 property ${beds24PropertyId}.`);
+  }
+
+  const beds24ContentDoc = await findDocByBeds24(payload, 'beds24-property-content', fallbackProperty);
+  if (beds24ContentDoc?.id) {
+    await payload.update({
+      collection: 'beds24-property-content',
+      id: String(beds24ContentDoc.id),
+      data: {
+        heroImageUrl: fallbackProperty.heroImage,
+        galleryUrls: fallbackProperty.gallery.map((url) => ({ url })),
+        lastSyncedAt: new Date().toISOString(),
+      },
+    });
+  }
+
+  const propertyDoc = await findDocByBeds24(payload, 'properties', fallbackProperty);
+  if (propertyDoc?.id) {
+    await payload.update({
+      collection: 'properties',
+      id: String(propertyDoc.id),
+      data: {
+        heroImage: null,
+        gallery: [],
+      },
+    });
+  }
+
+  return {
+    propertyKey: fallbackProperty.id,
+    beds24PropertyId: fallbackProperty.beds24PropertyId,
+    heroImageUrl: fallbackProperty.heroImage,
+    galleryCount: fallbackProperty.gallery.length,
+  };
 }
