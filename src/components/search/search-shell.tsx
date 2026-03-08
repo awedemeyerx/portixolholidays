@@ -41,6 +41,7 @@ export function SearchShell({ locale, hero, featuredProperties }: Props) {
   const [isPending, startTransition] = useTransition();
   const [response, setResponse] = useState<SearchResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isFetchingResults, setIsFetchingResults] = useState(false);
 
   const currentQuery = useMemo(() => {
     const checkIn = searchParams.get('checkIn') ?? '';
@@ -52,20 +53,22 @@ export function SearchShell({ locale, hero, featuredProperties }: Props) {
     const guests = Number(currentQuery.guests);
     return Number.isFinite(guests) && guests > 0 ? guests : 2;
   }, [currentQuery.guests]);
+  const hasCompleteQuery = Boolean(currentQuery.checkIn && currentQuery.checkOut && currentQuery.guests);
+  const hasInvalidRange = Boolean(
+    currentQuery.checkIn && currentQuery.checkOut && diffNights(currentQuery.checkIn, currentQuery.checkOut) <= 0,
+  );
 
   useEffect(() => {
-    const hasCompleteQuery = currentQuery.checkIn && currentQuery.checkOut && currentQuery.guests;
-    const hasInvalidRange =
-      currentQuery.checkIn && currentQuery.checkOut && diffNights(currentQuery.checkIn, currentQuery.checkOut) <= 0;
-
     if (!hasCompleteQuery || hasInvalidRange) {
       setResponse(null);
       setError(null);
+      setIsFetchingResults(false);
       return;
     }
 
     const controller = new AbortController();
     setError(null);
+    setIsFetchingResults(true);
 
     fetch(
       `/api/search?checkIn=${encodeURIComponent(currentQuery.checkIn)}&checkOut=${encodeURIComponent(currentQuery.checkOut)}&guests=${encodeURIComponent(currentQuery.guests)}&locale=${locale}`,
@@ -84,10 +87,13 @@ export function SearchShell({ locale, hero, featuredProperties }: Props) {
       .catch((requestError) => {
         if ((requestError as Error).name === 'AbortError') return;
         setError(requestError instanceof Error ? requestError.message : 'Search failed');
+      })
+      .finally(() => {
+        setIsFetchingResults(false);
       });
 
     return () => controller.abort();
-  }, [currentQuery, locale]);
+  }, [currentQuery, hasCompleteQuery, hasInvalidRange, locale]);
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -124,6 +130,8 @@ export function SearchShell({ locale, hero, featuredProperties }: Props) {
   }
 
   const results = response?.results ?? [];
+  const showFeatured = !response && !hasCompleteQuery;
+  const showLoadingPanel = hasCompleteQuery && !response && isFetchingResults;
 
   return (
     <div className="space-y-10">
@@ -167,11 +175,30 @@ export function SearchShell({ locale, hero, featuredProperties }: Props) {
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="label-caps text-xs text-sea">{t('resultsTitle')}</p>
-              <h2 className="font-serif text-4xl leading-tight">{response ? t('resultsSubtitle') : hero.ctaPrimary}</h2>
+              <h2 className="font-serif text-4xl leading-tight">
+                {response || hasCompleteQuery ? t('resultsSubtitle') : hero.ctaPrimary}
+              </h2>
             </div>
           </div>
 
           {error ? <p className="rounded-3xl bg-terracotta/10 px-5 py-4 text-sm text-terracotta">{error}</p> : null}
+
+          {response && isFetchingResults ? (
+            <div className="flex items-center gap-3 rounded-[1.5rem] border border-sea/12 bg-white/70 px-4 py-3 text-sm text-ink/72">
+              <span className="loading-wheel" aria-hidden="true" />
+              <span>{response ? t('rechecking') : t('checking')}</span>
+            </div>
+          ) : null}
+
+          {showLoadingPanel ? (
+            <div className="glass-card rounded-[2rem] px-6 py-10 text-center">
+              <div className="mx-auto flex max-w-md flex-col items-center gap-4">
+                <span className="loading-wheel loading-wheel-large" aria-hidden="true" />
+                <h3 className="font-serif text-3xl">{t('checkingTitle')}</h3>
+                <p className="text-sm leading-7 text-ink/68">{t('checkingBody')}</p>
+              </div>
+            </div>
+          ) : null}
 
           {response && results.length > 0 ? (
             <div className="grid gap-6">
@@ -223,7 +250,7 @@ export function SearchShell({ locale, hero, featuredProperties }: Props) {
             </div>
           ) : null}
 
-          {!response ? (
+          {showFeatured ? (
             <div className="grid gap-5 md:grid-cols-3">
               {featuredProperties.map((property) => (
                 <LinkCard key={property.id} locale={locale} property={property} />

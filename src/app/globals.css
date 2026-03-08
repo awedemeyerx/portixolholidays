@@ -180,3 +180,25 @@ select {
   background: linear-gradient(180deg, rgba(199, 124, 91, 0.96), rgba(171, 95, 69, 0.96));
   color: var(--foam);
 }
+
+.loading-wheel {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  border: 2px solid rgba(62, 146, 168, 0.2);
+  border-top-color: var(--sea);
+  animation: spin 0.8s linear infinite;
+}
+
+.loading-wheel-large {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-width: 3px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
