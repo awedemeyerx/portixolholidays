@@ -190,25 +190,25 @@ async function ensureBeds24ContentDoc(
         titleES: property.title.es,
       },
       summary: {
-        summaryDE: property.summary.de,
-        summaryEN: property.summary.en,
-        summaryES: property.summary.es,
+        summaryDE: '',
+        summaryEN: '',
+        summaryES: '',
       },
       description: {
-        descriptionDE: property.description.de,
-        descriptionEN: property.description.en,
-        descriptionES: property.description.es,
+        descriptionDE: '',
+        descriptionEN: '',
+        descriptionES: '',
       },
       locationLabel: {
-        locationLabelDE: property.locationLabel.de,
-        locationLabelEN: property.locationLabel.en,
-        locationLabelES: property.locationLabel.es,
+        locationLabelDE: '',
+        locationLabelEN: '',
+        locationLabelES: '',
       },
       bedrooms: property.bedrooms,
       bathrooms: property.bathrooms,
       maxGuests: property.maxGuests,
-      heroImageUrl: property.heroImage,
-      galleryUrls: property.gallery.map((url) => ({ url })),
+      heroImageUrl: '',
+      galleryUrls: [],
       lastSyncedAt: new Date().toISOString(),
     },
   })) as RawDoc;
@@ -314,8 +314,8 @@ export async function restorePropertyImagesFromFallback(beds24PropertyId: number
       collection: 'beds24-property-content',
       id: String(beds24ContentDoc.id),
       data: {
-        heroImageUrl: fallbackProperty.heroImage,
-        galleryUrls: fallbackProperty.gallery.map((url) => ({ url })),
+        heroImageUrl: '',
+        galleryUrls: [],
         lastSyncedAt: new Date().toISOString(),
       },
     });
@@ -336,7 +336,7 @@ export async function restorePropertyImagesFromFallback(beds24PropertyId: number
   return {
     propertyKey: fallbackProperty.id,
     beds24PropertyId: fallbackProperty.beds24PropertyId,
-    heroImageUrl: fallbackProperty.heroImage,
-    galleryCount: fallbackProperty.gallery.length,
+    heroImageUrl: '',
+    galleryCount: 0,
   };
 }

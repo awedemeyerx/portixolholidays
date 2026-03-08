@@ -266,22 +266,32 @@ export function SearchShell({ locale, hero, featuredProperties }: Props) {
 
 function LinkCard({ locale, property }: { locale: Locale; property: FeaturedProperty }) {
   const t = useTranslations('Search');
+  const hasHeroImage = Boolean(property.heroImage);
+  const hasLocationLabel = Boolean(property.locationLabel.trim());
+  const hasSummary = Boolean(property.summary.trim());
   return (
     <Link href={`/${locale}/properties/${property.slug}`} className="glass-card block overflow-hidden rounded-[2rem] transition hover:-translate-y-1">
       <div className="relative h-64 overflow-hidden">
-        <Image
-          src={property.heroImage}
-          alt={property.title}
-          fill
-          sizes="(max-width: 767px) 100vw, 33vw"
-          className="object-cover"
-        />
+        {hasHeroImage ? (
+          <Image
+            src={property.heroImage}
+            alt={property.title}
+            fill
+            sizes="(max-width: 767px) 100vw, 33vw"
+            className="object-cover"
+          />
+        ) : (
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(10,116,140,0.18),transparent_58%),linear-gradient(135deg,rgba(244,227,211,0.9),rgba(255,255,255,0.98))]"
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-ink/70" />
       </div>
       <div className="space-y-3 p-5">
-        <p className="label-caps text-[11px] text-sea">{property.locationLabel}</p>
+        {hasLocationLabel ? <p className="label-caps text-[11px] text-sea">{property.locationLabel}</p> : null}
         <h3 className="font-serif text-2xl">{property.title}</h3>
-        <p className="text-sm leading-6 text-ink/70">{property.summary}</p>
+        {hasSummary ? <p className="text-sm leading-6 text-ink/70">{property.summary}</p> : null}
         <p className="text-sm text-ink/55">
           {property.maxGuests} {t('guestsMax')}
         </p>

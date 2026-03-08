@@ -5,8 +5,6 @@ import { getPayloadClient } from '@/lib/payload';
 
 type RawDoc = Record<string, unknown>;
 const CATALOG_TTL_MS = 6 * 60 * 60 * 1000;
-const DEFAULT_PROPERTY_IMAGE =
-  'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1600&q=80';
 
 function emptyLocalized(): Localized {
   return { de: '', en: '', es: '' };
@@ -91,12 +89,29 @@ function looksLikePlaceholderText(value: string) {
   return !normalized || /^property\s+\d+$/i.test(value.trim()) || /^\d+:\d+$/.test(normalized) || /^\d+$/.test(normalized);
 }
 
+function hasVerifiedBeds24Raw(record: Beds24ContentRecord) {
+  return Boolean(record.raw && Object.keys(record.raw).length > 0);
+}
+
+function isVerifiedPropertyImage(url: string) {
+  const normalized = url.trim();
+  return Boolean(
+    normalized &&
+      (normalized.startsWith('/api/media/file/') ||
+        /^(https?:\/\/)(media\.xmlcal\.com|a0\.muscache\.com|images\.ctfassets\.net|res\.cloudinary\.com)/i.test(normalized)),
+  );
+}
+
+function verifiedGalleryUrls(record: Beds24ContentRecord) {
+  return record.gallery.filter((url) => isVerifiedPropertyImage(url));
+}
+
 function isRenderableBeds24Content(record: Beds24ContentRecord) {
   if (record.beds24PropertyId <= 0 || record.beds24RoomId <= 0) {
     return false;
   }
 
-  if (hasText(record.heroImage) || record.gallery.length > 0) {
+  if (isVerifiedPropertyImage(record.heroImage) || verifiedGalleryUrls(record).length > 0) {
     return true;
   }
 
@@ -262,7 +277,10 @@ function normalizeContentRecord(record: RawDoc): Omit<Beds24ContentRecord, 'id' 
 }
 
 function mapBeds24ContentDoc(doc: RawDoc): Beds24ContentRecord {
-  const title = mapLocalizedGroup(doc.title as RawDoc | undefined, 'title');
+  const title = mergeLocalized(
+    toLocalized(String(doc.internalName ?? '').trim()),
+    mapLocalizedGroup(doc.title as RawDoc | undefined, 'title'),
+  );
   const summary = mapLocalizedGroup(doc.summary as RawDoc | undefined, 'summary');
   const description = mapLocalizedGroup(doc.description as RawDoc | undefined, 'description');
   const locationLabel = mapLocalizedGroup(doc.locationLabel as RawDoc | undefined, 'locationLabel');
@@ -293,16 +311,20 @@ function mapBeds24ContentDoc(doc: RawDoc): Beds24ContentRecord {
 export function mergePropertyWithBeds24Content(property: PropertyRecord, content: Beds24ContentRecord | null) {
   if (!content) return property;
 
+  const hasVerifiedText = hasVerifiedBeds24Raw(content);
+  const verifiedHeroImage = isVerifiedPropertyImage(content.heroImage) ? content.heroImage : '';
+  const verifiedGallery = verifiedGalleryUrls(content);
+
   return {
     ...property,
     beds24PropertyId: content.beds24PropertyId || property.beds24PropertyId,
     beds24RoomId: content.beds24RoomId || property.beds24RoomId,
     title: mergeLocalizedPreferBase(property.title, content.title),
-    summary: mergeLocalizedPreferBase(property.summary, content.summary),
-    description: mergeLocalizedPreferBase(property.description, content.description),
-    locationLabel: mergeLocalizedPreferBase(property.locationLabel, content.locationLabel),
-    heroImage: content.heroImage || property.heroImage,
-    gallery: content.gallery.length > 0 ? content.gallery : property.gallery,
+    summary: hasVerifiedText ? mergeLocalizedPreferBase(property.summary, content.summary) : property.summary,
+    description: hasVerifiedText ? mergeLocalizedPreferBase(property.description, content.description) : property.description,
+    locationLabel: hasVerifiedText ? mergeLocalizedPreferBase(property.locationLabel, content.locationLabel) : property.locationLabel,
+    heroImage: verifiedHeroImage || property.heroImage,
+    gallery: verifiedGallery.length > 0 ? verifiedGallery : property.gallery,
     bedrooms: content.bedrooms ?? property.bedrooms,
     bathrooms: content.bathrooms ?? property.bathrooms,
     maxGuests: content.maxGuests ?? property.maxGuests,
@@ -334,11 +356,12 @@ function localizeWithFallback(value: Localized, fallback: string) {
 function createSyntheticPropertyFromBeds24Content(content: Beds24ContentRecord): PropertyRecord {
   const titleText = content.title.de || content.title.en || content.title.es || `Property ${content.beds24PropertyId}`;
   const slug = normalizeLookupValue(titleText) || `property-${content.beds24PropertyId}`;
-  const summaryText = content.summary.de || content.summary.en || content.summary.es || titleText;
-  const descriptionText = content.description.de || content.description.en || content.description.es || summaryText;
-  const locationText = content.locationLabel.de || content.locationLabel.en || content.locationLabel.es || 'Mallorca';
-  const heroImage = content.heroImage || content.gallery[0] || DEFAULT_PROPERTY_IMAGE;
-  const gallery = content.gallery.length > 0 ? content.gallery : [heroImage];
+  const hasVerifiedText = hasVerifiedBeds24Raw(content);
+  const summaryText = hasVerifiedText ? content.summary.de || content.summary.en || content.summary.es : '';
+  const descriptionText = hasVerifiedText ? content.description.de || content.description.en || content.description.es : '';
+  const locationText = hasVerifiedText ? content.locationLabel.de || content.locationLabel.en || content.locationLabel.es : '';
+  const heroImage = isVerifiedPropertyImage(content.heroImage) ? content.heroImage : '';
+  const gallery = verifiedGalleryUrls(content);
 
   return {
     id: slug,
@@ -347,10 +370,10 @@ function createSyntheticPropertyFromBeds24Content(content: Beds24ContentRecord):
     beds24RoomId: content.beds24RoomId,
     slugs: fallbackLocalized(slug),
     title: localizeWithFallback(content.title, titleText),
-    summary: localizeWithFallback(content.summary, summaryText),
-    description: localizeWithFallback(content.description, descriptionText),
-    locationLabel: localizeWithFallback(content.locationLabel, locationText),
-    distanceLabel: fallbackLocalized('Mallorca'),
+    summary: hasVerifiedText ? localizeWithFallback(content.summary, summaryText) : emptyLocalized(),
+    description: hasVerifiedText ? localizeWithFallback(content.description, descriptionText) : emptyLocalized(),
+    locationLabel: hasVerifiedText ? localizeWithFallback(content.locationLabel, locationText) : emptyLocalized(),
+    distanceLabel: emptyLocalized(),
     bedrooms: content.bedrooms ?? 1,
     bathrooms: content.bathrooms ?? 1,
     maxGuests: content.maxGuests ?? 2,
@@ -367,9 +390,9 @@ function createSyntheticPropertyFromBeds24Content(content: Beds24ContentRecord):
       depositRate: 0.3,
       currency: 'EUR',
     },
-    cancellationSummary: fallbackLocalized('Free cancellation up to 14 days before arrival.'),
+    cancellationSummary: emptyLocalized(),
     seoTitle: localizeWithFallback(content.title, titleText),
-    seoDescription: localizeWithFallback(content.summary, summaryText),
+    seoDescription: hasVerifiedText ? localizeWithFallback(content.summary, summaryText) : emptyLocalized(),
     blockedRanges: [],
   };
 }

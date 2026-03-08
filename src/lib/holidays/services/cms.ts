@@ -4,6 +4,10 @@ import { resolveBeds24ContentForProperties } from './beds24-content';
 import type { FAQEntry, LegalPageRecord, Locale, PropertyRecord, SiteSettingsRecord } from '../types';
 import { getPayloadClient } from '@/lib/payload';
 
+function emptyLocalized() {
+  return { de: '', en: '', es: '' };
+}
+
 function mapLocalizedGroup(group: Record<string, unknown> | undefined, fieldName: string) {
   return {
     de: String(group?.[`${fieldName}DE`] ?? ''),
@@ -32,8 +36,29 @@ function mediaUrl(value: unknown): string {
     if (typeof record.url === 'string') return record.url;
     if (typeof record.thumbnailURL === 'string') return record.thumbnailURL;
   }
-  return 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1600&q=80';
+  return '';
 }
+
+function stripFallbackPropertyContent(property: PropertyRecord): PropertyRecord {
+  return {
+    ...property,
+    summary: emptyLocalized(),
+    description: emptyLocalized(),
+    locationLabel: emptyLocalized(),
+    distanceLabel: emptyLocalized(),
+    heroImage: '',
+    gallery: [],
+    highlights: [],
+    amenities: [],
+    houseRules: [],
+    cancellationSummary: emptyLocalized(),
+    seoTitle: { ...property.title },
+    seoDescription: emptyLocalized(),
+    blockedRanges: [],
+  };
+}
+
+const safeFallbackProperties = fallbackProperties.map((property) => stripFallbackPropertyContent(property));
 
 function mapProperty(doc: Record<string, unknown>): PropertyRecord {
   const slugs = mapLocalizedGroup(doc.slugs as Record<string, unknown>, 'slugs');
@@ -188,7 +213,7 @@ export async function getSiteSettings(): Promise<SiteSettingsRecord> {
 
 export async function getProperties(): Promise<PropertyRecord[]> {
   const payload = await getPayloadClient();
-  if (!payload) return resolveBeds24ContentForProperties(fallbackProperties);
+  if (!payload) return resolveBeds24ContentForProperties(safeFallbackProperties);
 
   try {
     const result = await payload.find({
@@ -199,10 +224,10 @@ export async function getProperties(): Promise<PropertyRecord[]> {
     });
     const mapped = result.docs.length > 0
       ? result.docs.map((doc) => mapProperty(doc as unknown as Record<string, unknown>))
-      : fallbackProperties;
+      : safeFallbackProperties;
     return resolveBeds24ContentForProperties(mapped);
   } catch {
-    return resolveBeds24ContentForProperties(fallbackProperties);
+    return resolveBeds24ContentForProperties(safeFallbackProperties);
   }
 }
 

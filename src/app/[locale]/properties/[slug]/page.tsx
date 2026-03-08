@@ -58,26 +58,39 @@ export default async function PropertyPage({ params, searchParams }: Props) {
 
   const quote = parsed.success ? await getPropertyQuoteBySlug(slug, parsed.data) : null;
   const bookingState = typeof rawSearchParams.booking === 'string' ? rawSearchParams.booking : null;
+  const hasHeroImage = Boolean(property.heroImage);
+  const hasLocationLabel = Boolean(localized.locationLabel.trim());
+  const hasDescription = Boolean(localized.description.trim());
+  const hasAmenities = localized.amenities.length > 0;
+  const hasHouseRules = localized.houseRules.length > 0;
+  const hasGallery = property.gallery.length > 0;
 
   return (
     <div className="px-4 pb-12 pt-4 md:px-8">
       <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-[1.1fr_0.9fr]">
         <section className="space-y-6">
           <div className="relative h-[420px] overflow-hidden rounded-[2rem]">
-            <Image
-              src={property.heroImage}
-              alt={localized.title}
-              fill
-              priority
-              sizes="(max-width: 767px) 100vw, 66vw"
-              className="object-cover"
-            />
+            {hasHeroImage ? (
+              <Image
+                src={property.heroImage}
+                alt={localized.title}
+                fill
+                priority
+                sizes="(max-width: 767px) 100vw, 66vw"
+                className="object-cover"
+              />
+            ) : (
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(10,116,140,0.18),transparent_58%),linear-gradient(135deg,rgba(244,227,211,0.9),rgba(255,255,255,0.98))]"
+              />
+            )}
           </div>
 
           <div className="glass-card rounded-[2rem] p-6 md:p-8">
-            <p className="label-caps text-xs text-sea">{localized.locationLabel}</p>
+            {hasLocationLabel ? <p className="label-caps text-xs text-sea">{localized.locationLabel}</p> : null}
             <h1 className="mt-3 font-serif text-5xl leading-none">{localized.title}</h1>
-            <p className="mt-4 max-w-3xl text-base leading-8 text-ink/72">{localized.description}</p>
+            {hasDescription ? <p className="mt-4 max-w-3xl text-base leading-8 text-ink/72">{localized.description}</p> : null}
 
             <div className="mt-6 flex flex-wrap gap-3">
               {localized.highlights.map((highlight) => (
@@ -109,39 +122,47 @@ export default async function PropertyPage({ params, searchParams }: Props) {
             ) : null}
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <article className="glass-card rounded-[2rem] p-6">
-              <p className="label-caps text-xs text-sea">{messages.Property.amenitiesTitle}</p>
-              <ul className="mt-4 grid gap-3 text-sm text-ink/72">
-                {localized.amenities.map((amenity) => (
-                  <li key={amenity}>{amenity}</li>
-                ))}
-              </ul>
-            </article>
+          {hasAmenities || hasHouseRules ? (
+            <div className="grid gap-6 md:grid-cols-2">
+              {hasAmenities ? (
+                <article className="glass-card rounded-[2rem] p-6">
+                  <p className="label-caps text-xs text-sea">{messages.Property.amenitiesTitle}</p>
+                  <ul className="mt-4 grid gap-3 text-sm text-ink/72">
+                    {localized.amenities.map((amenity) => (
+                      <li key={amenity}>{amenity}</li>
+                    ))}
+                  </ul>
+                </article>
+              ) : null}
 
-            <article className="glass-card rounded-[2rem] p-6">
-              <p className="label-caps text-xs text-sea">{messages.Property.rulesTitle}</p>
-              <ul className="mt-4 grid gap-3 text-sm text-ink/72">
-                {localized.houseRules.map((rule) => (
-                  <li key={rule}>{rule}</li>
-                ))}
-              </ul>
-            </article>
-          </div>
+              {hasHouseRules ? (
+                <article className="glass-card rounded-[2rem] p-6">
+                  <p className="label-caps text-xs text-sea">{messages.Property.rulesTitle}</p>
+                  <ul className="mt-4 grid gap-3 text-sm text-ink/72">
+                    {localized.houseRules.map((rule) => (
+                      <li key={rule}>{rule}</li>
+                    ))}
+                  </ul>
+                </article>
+              ) : null}
+            </div>
+          ) : null}
 
-          <div className="grid gap-4 md:grid-cols-3">
-            {property.gallery.map((image, index) => (
-              <div key={`${image}-${index}`} className="relative aspect-[4/3] overflow-hidden rounded-[1.5rem]">
-                <Image
-                  src={image}
-                  alt={`${localized.title} ${index + 1}`}
-                  fill
-                  sizes="(max-width: 767px) 100vw, 33vw"
-                  className="object-cover"
-                />
-              </div>
-            ))}
-          </div>
+          {hasGallery ? (
+            <div className="grid gap-4 md:grid-cols-3">
+              {property.gallery.map((image, index) => (
+                <div key={`${image}-${index}`} className="relative aspect-[4/3] overflow-hidden rounded-[1.5rem]">
+                  <Image
+                    src={image}
+                    alt={`${localized.title} ${index + 1}`}
+                    fill
+                    sizes="(max-width: 767px) 100vw, 33vw"
+                    className="object-cover"
+                  />
+                </div>
+              ))}
+            </div>
+          ) : null}
         </section>
 
         <section className="space-y-4">

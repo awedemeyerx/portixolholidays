@@ -20,28 +20,41 @@ type Props = {
 
 export function PropertyCard({ property, locale, labels, queryString }: Props) {
   const href = queryString ? `/${locale}/properties/${property.slug}?${queryString}` : `/${locale}/properties/${property.slug}`;
+  const hasHeroImage = Boolean(property.heroImage);
+  const hasLocationLabel = Boolean(property.locationLabel.trim());
+  const hasDistanceLabel = Boolean(property.distanceLabel.trim());
+  const hasSummary = Boolean(property.summary.trim());
 
   return (
     <article className="glass-card grid gap-5 rounded-[2rem] p-4 md:grid-cols-[1.1fr_0.9fr] md:p-5">
       <div className="relative min-h-[260px] overflow-hidden rounded-[1.5rem]">
-        <Image
-          src={property.heroImage}
-          alt={property.title}
-          fill
-          sizes="(max-width: 767px) 100vw, 50vw"
-          className="object-cover"
-        />
+        {hasHeroImage ? (
+          <Image
+            src={property.heroImage}
+            alt={property.title}
+            fill
+            sizes="(max-width: 767px) 100vw, 50vw"
+            className="object-cover"
+          />
+        ) : (
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(10,116,140,0.18),transparent_58%),linear-gradient(135deg,rgba(244,227,211,0.9),rgba(255,255,255,0.98))]"
+          />
+        )}
       </div>
       <div className="flex flex-col justify-between gap-6">
         <div className="space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="label-caps text-[11px] text-sea">{property.locationLabel}</p>
+              {hasLocationLabel ? <p className="label-caps text-[11px] text-sea">{property.locationLabel}</p> : null}
               <h3 className="font-serif text-3xl leading-tight">{property.title}</h3>
             </div>
-            <span className="rounded-full bg-sea/10 px-3 py-1 text-xs text-sea">{property.distanceLabel}</span>
+            {hasDistanceLabel ? (
+              <span className="rounded-full bg-sea/10 px-3 py-1 text-xs text-sea">{property.distanceLabel}</span>
+            ) : null}
           </div>
-          <p className="max-w-xl text-sm leading-6 text-ink/72">{property.summary}</p>
+          {hasSummary ? <p className="max-w-xl text-sm leading-6 text-ink/72">{property.summary}</p> : null}
           <div className="flex flex-wrap gap-3 text-sm text-ink/70">
             <span>{property.bedrooms} {labels.beds}</span>
             <span>{property.bathrooms} {labels.baths}</span>
