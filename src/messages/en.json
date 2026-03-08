@@ -64,7 +64,12 @@
     "depositShort": "deposit",
     "guestsShort": "guests",
     "amenitiesTitle": "Amenities",
-    "rulesTitle": "House rules"
+    "rulesTitle": "House rules",
+    "openGallery": "Open gallery",
+    "closeGallery": "Close",
+    "previousImage": "Previous image",
+    "nextImage": "Next image",
+    "imageCount": "images"
   },
   "Footer": {
     "imprint": "Imprint",

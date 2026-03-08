@@ -1,7 +1,7 @@
-import Image from 'next/image';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { BookingPanel } from '@/components/property/booking-panel';
+import { PropertyGallery } from '@/components/property/property-gallery';
 import { formatMoney } from '@/lib/holidays/dates';
 import { localizeProperty } from '@/lib/holidays/localize';
 import { safeLocale } from '@/lib/holidays/locale';
@@ -58,34 +58,35 @@ export default async function PropertyPage({ params, searchParams }: Props) {
 
   const quote = parsed.success ? await getPropertyQuoteBySlug(slug, parsed.data) : null;
   const bookingState = typeof rawSearchParams.booking === 'string' ? rawSearchParams.booking : null;
-  const hasHeroImage = Boolean(property.heroImage);
   const hasLocationLabel = Boolean(localized.locationLabel.trim());
   const hasDescription = Boolean(localized.description.trim());
   const hasAmenities = localized.amenities.length > 0;
   const hasHouseRules = localized.houseRules.length > 0;
-  const hasGallery = property.gallery.length > 0;
+  const galleryImages = Array.from(new Set([property.heroImage, ...property.gallery].filter(Boolean)));
+  const hasGallery = galleryImages.length > 0;
 
   return (
     <div className="px-4 pb-12 pt-4 md:px-8">
       <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-[1.1fr_0.9fr]">
         <section className="space-y-6">
-          <div className="relative h-[420px] overflow-hidden rounded-[2rem]">
-            {hasHeroImage ? (
-              <Image
-                src={property.heroImage}
-                alt={localized.title}
-                fill
-                priority
-                sizes="(max-width: 767px) 100vw, 66vw"
-                className="object-cover"
-              />
-            ) : (
-              <div
-                aria-hidden="true"
-                className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(10,116,140,0.18),transparent_58%),linear-gradient(135deg,rgba(244,227,211,0.9),rgba(255,255,255,0.98))]"
-              />
-            )}
-          </div>
+          {hasGallery ? (
+            <PropertyGallery
+              title={localized.title}
+              images={galleryImages}
+              labels={{
+                open: messages.Property.openGallery,
+                close: messages.Property.closeGallery,
+                previous: messages.Property.previousImage,
+                next: messages.Property.nextImage,
+                imageCount: messages.Property.imageCount,
+              }}
+            />
+          ) : (
+            <div
+              aria-hidden="true"
+              className="relative h-[420px] overflow-hidden rounded-[2rem] bg-[radial-gradient(circle_at_top,rgba(10,116,140,0.18),transparent_58%),linear-gradient(135deg,rgba(244,227,211,0.9),rgba(255,255,255,0.98))]"
+            />
+          )}
 
           <div className="glass-card rounded-[2rem] p-6 md:p-8">
             {hasLocationLabel ? <p className="label-caps text-xs text-sea">{localized.locationLabel}</p> : null}
@@ -148,21 +149,6 @@ export default async function PropertyPage({ params, searchParams }: Props) {
             </div>
           ) : null}
 
-          {hasGallery ? (
-            <div className="grid gap-4 md:grid-cols-3">
-              {property.gallery.map((image, index) => (
-                <div key={`${image}-${index}`} className="relative aspect-[4/3] overflow-hidden rounded-[1.5rem]">
-                  <Image
-                    src={image}
-                    alt={`${localized.title} ${index + 1}`}
-                    fill
-                    sizes="(max-width: 767px) 100vw, 33vw"
-                    className="object-cover"
-                  />
-                </div>
-              ))}
-            </div>
-          ) : null}
         </section>
 
         <section className="space-y-4">

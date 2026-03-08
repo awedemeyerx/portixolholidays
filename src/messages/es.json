@@ -64,7 +64,12 @@
     "depositShort": "depósito",
     "guestsShort": "huéspedes",
     "amenitiesTitle": "Comodidades",
-    "rulesTitle": "Normas"
+    "rulesTitle": "Normas",
+    "openGallery": "Abrir galería",
+    "closeGallery": "Cerrar",
+    "previousImage": "Imagen anterior",
+    "nextImage": "Siguiente imagen",
+    "imageCount": "imágenes"
   },
   "Footer": {
     "imprint": "Aviso legal",

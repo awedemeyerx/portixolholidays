@@ -64,7 +64,12 @@
     "depositShort": "Anzahlung",
     "guestsShort": "Gäste",
     "amenitiesTitle": "Ausstattung",
-    "rulesTitle": "Hausregeln"
+    "rulesTitle": "Hausregeln",
+    "openGallery": "Galerie öffnen",
+    "closeGallery": "Schließen",
+    "previousImage": "Vorheriges Bild",
+    "nextImage": "Nächstes Bild",
+    "imageCount": "Bilder"
   },
   "Footer": {
     "imprint": "Impressum",
