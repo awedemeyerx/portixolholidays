@@ -5,6 +5,8 @@ import { getPayloadClient } from '@/lib/payload';
 
 type RawDoc = Record<string, unknown>;
 const CATALOG_TTL_MS = 6 * 60 * 60 * 1000;
+const DEFAULT_PROPERTY_IMAGE =
+  'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1600&q=80';
 
 function emptyLocalized(): Localized {
   return { de: '', en: '', es: '' };
@@ -78,6 +80,31 @@ function mergeLocalizedPreferBase(base: Localized, override: Localized) {
     en: base.en || override.en,
     es: base.es || override.es,
   };
+}
+
+function primaryLocalizedText(value: Localized) {
+  return value.de || value.en || value.es || '';
+}
+
+function looksLikePlaceholderText(value: string) {
+  const normalized = value.trim().toLowerCase();
+  return !normalized || /^property\s+\d+$/i.test(value.trim()) || /^\d+:\d+$/.test(normalized) || /^\d+$/.test(normalized);
+}
+
+function isRenderableBeds24Content(record: Beds24ContentRecord) {
+  if (record.beds24PropertyId <= 0 || record.beds24RoomId <= 0) {
+    return false;
+  }
+
+  if (hasText(record.heroImage) || record.gallery.length > 0) {
+    return true;
+  }
+
+  const titleText = primaryLocalizedText(record.title);
+  const summaryText = primaryLocalizedText(record.summary);
+  const descriptionText = primaryLocalizedText(record.description);
+
+  return [titleText, summaryText, descriptionText].some((value) => hasText(value) && !looksLikePlaceholderText(value));
 }
 
 function mapLocalizedGroup(group: RawDoc | undefined, fieldName: string): Localized {
@@ -310,6 +337,8 @@ function createSyntheticPropertyFromBeds24Content(content: Beds24ContentRecord):
   const summaryText = content.summary.de || content.summary.en || content.summary.es || titleText;
   const descriptionText = content.description.de || content.description.en || content.description.es || summaryText;
   const locationText = content.locationLabel.de || content.locationLabel.en || content.locationLabel.es || 'Mallorca';
+  const heroImage = content.heroImage || content.gallery[0] || DEFAULT_PROPERTY_IMAGE;
+  const gallery = content.gallery.length > 0 ? content.gallery : [heroImage];
 
   return {
     id: slug,
@@ -325,8 +354,8 @@ function createSyntheticPropertyFromBeds24Content(content: Beds24ContentRecord):
     bedrooms: content.bedrooms ?? 1,
     bathrooms: content.bathrooms ?? 1,
     maxGuests: content.maxGuests ?? 2,
-    heroImage: content.heroImage || '',
-    gallery: content.gallery,
+    heroImage,
+    gallery,
     highlights: [],
     amenities: [],
     houseRules: [],
@@ -371,7 +400,9 @@ export async function getBeds24ContentRecords() {
       sort: '-lastSyncedAt',
     });
 
-    return result.docs.map((doc) => mapBeds24ContentDoc(doc as unknown as RawDoc));
+    return result.docs
+      .map((doc) => mapBeds24ContentDoc(doc as unknown as RawDoc))
+      .filter((record) => isRenderableBeds24Content(record));
   } catch {
     return [];
   }
@@ -398,7 +429,8 @@ export async function getLiveBeds24ContentRecords() {
       id: `${record.beds24PropertyId}:${record.beds24RoomId}`,
       ...record,
       lastSyncedAt: new Date().toISOString(),
-    })) as Beds24ContentRecord[];
+    }))
+    .filter((record) => isRenderableBeds24Content(record as Beds24ContentRecord)) as Beds24ContentRecord[];
 
   await writeCache('beds24-content', 'catalog_live', normalized, CATALOG_TTL_MS);
   return normalized;
@@ -460,40 +492,48 @@ export async function syncBeds24PropertyContent() {
     if (!normalized) continue;
 
     const key = `${normalized.beds24PropertyId}:${normalized.beds24RoomId}`;
+    const contentRecord = {
+      id: key,
+      ...normalized,
+      lastSyncedAt: new Date().toISOString(),
+    } as Beds24ContentRecord;
+
+    if (!isRenderableBeds24Content(contentRecord)) continue;
+
     if (seenKeys.has(key)) continue;
     seenKeys.add(key);
 
     const payloadData = {
-      internalName: normalized.title.de || normalized.title.en || normalized.title.es || key,
-      beds24PropertyId: normalized.beds24PropertyId,
-      beds24RoomId: normalized.beds24RoomId,
+      internalName: contentRecord.title.de || contentRecord.title.en || contentRecord.title.es || key,
+      beds24PropertyId: contentRecord.beds24PropertyId,
+      beds24RoomId: contentRecord.beds24RoomId,
       title: {
-        titleDE: normalized.title.de,
-        titleEN: normalized.title.en,
-        titleES: normalized.title.es,
+        titleDE: contentRecord.title.de,
+        titleEN: contentRecord.title.en,
+        titleES: contentRecord.title.es,
       },
       summary: {
-        summaryDE: normalized.summary.de,
-        summaryEN: normalized.summary.en,
-        summaryES: normalized.summary.es,
+        summaryDE: contentRecord.summary.de,
+        summaryEN: contentRecord.summary.en,
+        summaryES: contentRecord.summary.es,
       },
       description: {
-        descriptionDE: normalized.description.de,
-        descriptionEN: normalized.description.en,
-        descriptionES: normalized.description.es,
+        descriptionDE: contentRecord.description.de,
+        descriptionEN: contentRecord.description.en,
+        descriptionES: contentRecord.description.es,
       },
       locationLabel: {
-        locationLabelDE: normalized.locationLabel.de,
-        locationLabelEN: normalized.locationLabel.en,
-        locationLabelES: normalized.locationLabel.es,
+        locationLabelDE: contentRecord.locationLabel.de,
+        locationLabelEN: contentRecord.locationLabel.en,
+        locationLabelES: contentRecord.locationLabel.es,
       },
-      heroImageUrl: normalized.heroImage,
-      galleryUrls: normalized.gallery.map((url) => ({ url })),
-      bedrooms: normalized.bedrooms,
-      bathrooms: normalized.bathrooms,
-      maxGuests: normalized.maxGuests,
-      lastSyncedAt: new Date().toISOString(),
-      raw: normalized.raw,
+      heroImageUrl: contentRecord.heroImage,
+      galleryUrls: contentRecord.gallery.map((url) => ({ url })),
+      bedrooms: contentRecord.bedrooms,
+      bathrooms: contentRecord.bathrooms,
+      maxGuests: contentRecord.maxGuests,
+      lastSyncedAt: contentRecord.lastSyncedAt,
+      raw: contentRecord.raw,
     };
 
     const existingDoc = existingByKey.get(key);
