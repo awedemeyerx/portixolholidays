@@ -154,8 +154,8 @@ export const fallbackProperties: PropertyRecord[] = [
   {
     id: 'casa-luz',
     priority: 1,
-    beds24PropertyId: 89711,
-    beds24RoomId: 8971101,
+    beds24PropertyId: 174132,
+    beds24RoomId: 380037,
     slugs: { de: 'casa-luz', en: 'casa-luz', es: 'casa-luz' },
     title: { de: 'Casa Luz', en: 'Casa Luz', es: 'Casa Luz' },
     summary: {
@@ -221,8 +221,8 @@ export const fallbackProperties: PropertyRecord[] = [
   {
     id: 'casa-mar',
     priority: 2,
-    beds24PropertyId: 89712,
-    beds24RoomId: 8971201,
+    beds24PropertyId: 174133,
+    beds24RoomId: 380038,
     slugs: { de: 'casa-mar', en: 'casa-mar', es: 'casa-mar' },
     title: { de: 'Casa Mar', en: 'Casa Mar', es: 'Casa Mar' },
     summary: {
@@ -243,7 +243,7 @@ export const fallbackProperties: PropertyRecord[] = [
     },
     bedrooms: 3,
     bathrooms: 2,
-    maxGuests: 5,
+    maxGuests: 4,
     heroImage: 'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1600&q=80',
     gallery: [
       'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1600&q=80',
@@ -284,8 +284,8 @@ export const fallbackProperties: PropertyRecord[] = [
   {
     id: 'casa-portixol-playa',
     priority: 3,
-    beds24PropertyId: 89713,
-    beds24RoomId: 8971301,
+    beds24PropertyId: 244683,
+    beds24RoomId: 515184,
     slugs: { de: 'casa-portixol-playa', en: 'casa-portixol-playa', es: 'casa-portixol-playa' },
     title: {
       de: 'Casa Portixol Playa',
@@ -355,8 +355,8 @@ export const fallbackProperties: PropertyRecord[] = [
   {
     id: 'casa-playa',
     priority: 4,
-    beds24PropertyId: 89714,
-    beds24RoomId: 8971401,
+    beds24PropertyId: 244684,
+    beds24RoomId: 515185,
     slugs: { de: 'casa-playa', en: 'casa-playa', es: 'casa-playa' },
     title: { de: 'Casa Playa', en: 'Casa Playa', es: 'Casa Playa' },
     summary: {
@@ -415,8 +415,8 @@ export const fallbackProperties: PropertyRecord[] = [
   {
     id: 'casa-puerto',
     priority: 5,
-    beds24PropertyId: 89715,
-    beds24RoomId: 8971501,
+    beds24PropertyId: 266085,
+    beds24RoomId: 557738,
     slugs: { de: 'casa-puerto', en: 'casa-puerto', es: 'casa-puerto' },
     title: { de: 'Casa Puerto', en: 'Casa Puerto', es: 'Casa Puerto' },
     summary: {

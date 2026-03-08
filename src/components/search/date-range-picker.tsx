@@ -128,13 +128,16 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
 
   function selectDate(nextDate: string) {
     if (!checkIn || activeField === 'checkIn') {
-      onChange({ checkIn: nextDate, checkOut });
+      onChange({ checkIn: nextDate, checkOut: '' });
       setActiveField('checkOut');
       setHoveredDate('');
       return;
     }
 
     onChange({ checkIn, checkOut: nextDate });
+    if (compareDateKeys(nextDate, checkIn) > 0) {
+      setActiveField('checkIn');
+    }
     setHoveredDate('');
   }
 

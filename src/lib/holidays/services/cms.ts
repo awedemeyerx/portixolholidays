@@ -1,6 +1,6 @@
 import { fallbackFaqs, fallbackLegalPages, fallbackProperties, fallbackSiteSettings } from '../data/fallback';
 import { pickLocalized } from '../localize';
-import { getBeds24ContentRecords, mergePropertyWithBeds24Content } from './beds24-content';
+import { resolveBeds24ContentForProperties } from './beds24-content';
 import type { FAQEntry, LegalPageRecord, Locale, PropertyRecord, SiteSettingsRecord } from '../types';
 import { getPayloadClient } from '@/lib/payload';
 
@@ -188,17 +188,7 @@ export async function getSiteSettings(): Promise<SiteSettingsRecord> {
 
 export async function getProperties(): Promise<PropertyRecord[]> {
   const payload = await getPayloadClient();
-  const beds24Content = await getBeds24ContentRecords();
-
-  if (!payload) {
-    return fallbackProperties.map((property) => {
-      const content =
-        beds24Content.find((entry) => entry.beds24RoomId === property.beds24RoomId) ??
-        beds24Content.find((entry) => entry.beds24PropertyId === property.beds24PropertyId) ??
-        null;
-      return mergePropertyWithBeds24Content(property, content);
-    });
-  }
+  if (!payload) return resolveBeds24ContentForProperties(fallbackProperties);
 
   try {
     const result = await payload.find({
@@ -207,22 +197,12 @@ export async function getProperties(): Promise<PropertyRecord[]> {
       limit: 100,
       sort: 'priority',
     });
-    return result.docs.map((doc) => {
-      const property = mapProperty(doc as unknown as Record<string, unknown>);
-      const content =
-        beds24Content.find((entry) => entry.beds24RoomId === property.beds24RoomId) ??
-        beds24Content.find((entry) => entry.beds24PropertyId === property.beds24PropertyId) ??
-        null;
-      return mergePropertyWithBeds24Content(property, content);
-    });
+    const mapped = result.docs.length > 0
+      ? result.docs.map((doc) => mapProperty(doc as unknown as Record<string, unknown>))
+      : fallbackProperties;
+    return resolveBeds24ContentForProperties(mapped);
   } catch {
-    return fallbackProperties.map((property) => {
-      const content =
-        beds24Content.find((entry) => entry.beds24RoomId === property.beds24RoomId) ??
-        beds24Content.find((entry) => entry.beds24PropertyId === property.beds24PropertyId) ??
-        null;
-      return mergePropertyWithBeds24Content(property, content);
-    });
+    return resolveBeds24ContentForProperties(fallbackProperties);
   }
 }
 

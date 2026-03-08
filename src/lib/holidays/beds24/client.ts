@@ -140,8 +140,8 @@ export async function fetchBeds24Offers(query: SearchQuery, roomIds: number[]) {
   const raw = await beds24Request<unknown>('/inventory/rooms/offers', {
     searchParams: {
       roomId: roomIds.join(','),
-      from: query.checkIn,
-      to: query.checkOut,
+      arrival: query.checkIn,
+      departure: query.checkOut,
       numAdult: String(query.guests),
     },
   });
@@ -158,21 +158,22 @@ export async function fetchBeds24PropertyCatalog() {
   });
 }
 
-export async function fetchBeds24Availability(query: SearchQuery, roomId: number) {
+async function fetchBeds24AvailabilityMap(roomId: number) {
   const raw = await beds24Request<unknown>('/inventory/rooms/availability', {
     searchParams: {
       roomId: String(roomId),
-      from: query.checkIn,
-      to: query.checkOut,
-      numAdult: String(query.guests),
     },
   });
 
-  const availability =
+  return (
     (raw as { availability?: Record<string, boolean> }).availability ??
     (raw as { data?: { availability?: Record<string, boolean> }[] }).data?.[0]?.availability ??
-    {};
+    {}
+  );
+}
 
+export async function fetchBeds24Availability(query: SearchQuery, roomId: number) {
+  const availability = await fetchBeds24AvailabilityMap(roomId);
   const nights = enumerateNights(query.checkIn, query.checkOut);
   return nights.every((night) => availability[night] !== false);
 }
@@ -204,35 +205,13 @@ export async function fetchBeds24Calendar(property: PropertyRecord): Promise<Cal
     };
   }
 
-  const from = toDateKey(new Date());
-  const to = addDays(from, 365);
-  const raw = await beds24Request<unknown>('/inventory/rooms/calendar', {
-    searchParams: {
-      roomId: String(property.beds24RoomId),
-      from,
-      to,
-    },
-  });
-
-  const entries = flattenEntries(raw);
   const days: CalendarSnapshot['days'] = {};
-
-  entries.forEach((entry) => {
-    const day = String(entry.date ?? entry.from ?? '');
-    if (!day) return;
-    const minStay = Number(entry.minStay ?? property.pricing.minStay);
-    const price = Number(entry.price1 ?? entry.price ?? property.pricing.nightly);
-    const available =
-      typeof entry.available === 'boolean'
-        ? entry.available
-        : typeof entry.bookable === 'boolean'
-          ? entry.bookable
-          : !Boolean(entry.closed);
-
+  const availability = await fetchBeds24AvailabilityMap(property.beds24RoomId);
+  Object.entries(availability).forEach(([day, available]) => {
     days[day] = {
       available,
-      minStay,
-      price,
+      minStay: property.pricing.minStay,
+      price: property.pricing.nightly,
     };
   });
 

@@ -1,8 +1,10 @@
 import { fetchBeds24PropertyCatalog, isBeds24Configured } from '../beds24/client';
+import { readCache, writeCache } from '../cache/json-store';
 import type { Beds24ContentRecord, Localized, PropertyRecord } from '../types';
 import { getPayloadClient } from '@/lib/payload';
 
 type RawDoc = Record<string, unknown>;
+const CATALOG_TTL_MS = 6 * 60 * 60 * 1000;
 
 function emptyLocalized(): Localized {
   return { de: '', en: '', es: '' };
@@ -67,6 +69,14 @@ function mergeLocalized(base: Localized, override: Localized) {
     de: override.de || base.de,
     en: override.en || base.en,
     es: override.es || base.es,
+  };
+}
+
+function mergeLocalizedPreferBase(base: Localized, override: Localized) {
+  return {
+    de: base.de || override.de,
+    en: base.en || override.en,
+    es: base.es || override.es,
   };
 }
 
@@ -152,16 +162,19 @@ function buildLocationLabel(record: RawDoc) {
 }
 
 function normalizeContentRecord(record: RawDoc): Omit<Beds24ContentRecord, 'id' | 'lastSyncedAt'> | null {
+  const primaryRoomType = Array.isArray(record.roomTypes) ? (record.roomTypes[0] as RawDoc | undefined) : undefined;
   const beds24PropertyId = maybeNumber(
     record.propertyId,
     record.propertyID,
     (record.property as RawDoc | undefined)?.id,
+    record.id,
   );
   const beds24RoomId = maybeNumber(
     record.roomId,
     record.roomID,
-    record.id,
+    primaryRoomType?.id,
     (record.room as RawDoc | undefined)?.id,
+    record.id,
   );
 
   if (!beds24PropertyId && !beds24RoomId) {
@@ -173,6 +186,7 @@ function normalizeContentRecord(record: RawDoc): Omit<Beds24ContentRecord, 'id' 
       record.title ??
       record.roomName ??
       record.roomTitle ??
+      primaryRoomType?.name ??
       (record.room as RawDoc | undefined)?.name ??
       (record.property as RawDoc | undefined)?.name,
   );
@@ -186,7 +200,7 @@ function normalizeContentRecord(record: RawDoc): Omit<Beds24ContentRecord, 'id' 
       (record.property as RawDoc | undefined)?.description,
   );
   const summarySource =
-    maybeString(record.summary, record.shortDescription, record.teaser) ||
+    maybeString(record.summary, record.shortDescription, record.teaser, primaryRoomType?.name) ||
     summarize(description.de || description.en || description.es);
   const summary = toLocalized(summarySource);
   const locationLabel = toLocalized(buildLocationLabel(record));
@@ -215,7 +229,7 @@ function normalizeContentRecord(record: RawDoc): Omit<Beds24ContentRecord, 'id' 
     gallery: images,
     bedrooms: maybeNumber(record.bedrooms, record.beds, record.numBedrooms),
     bathrooms: maybeNumber(record.bathrooms, record.baths, record.numBathrooms),
-    maxGuests: maybeNumber(record.maxGuests, record.maxPeople, record.maxOccupancy, record.occupancy),
+    maxGuests: maybeNumber(record.maxGuests, record.maxPeople, record.maxOccupancy, record.occupancy, primaryRoomType?.maxPeople),
     raw: record,
   };
 }
@@ -254,16 +268,42 @@ export function mergePropertyWithBeds24Content(property: PropertyRecord, content
 
   return {
     ...property,
-    title: mergeLocalized(property.title, content.title),
-    summary: mergeLocalized(property.summary, content.summary),
-    description: mergeLocalized(property.description, content.description),
-    locationLabel: mergeLocalized(property.locationLabel, content.locationLabel),
+    beds24PropertyId: content.beds24PropertyId || property.beds24PropertyId,
+    beds24RoomId: content.beds24RoomId || property.beds24RoomId,
+    title: mergeLocalizedPreferBase(property.title, content.title),
+    summary: mergeLocalizedPreferBase(property.summary, content.summary),
+    description: mergeLocalizedPreferBase(property.description, content.description),
+    locationLabel: mergeLocalizedPreferBase(property.locationLabel, content.locationLabel),
     heroImage: content.heroImage || property.heroImage,
     gallery: content.gallery.length > 0 ? content.gallery : property.gallery,
     bedrooms: content.bedrooms ?? property.bedrooms,
     bathrooms: content.bathrooms ?? property.bathrooms,
     maxGuests: content.maxGuests ?? property.maxGuests,
   };
+}
+
+function normalizeLookupValue(value: string) {
+  return value
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function matchBeds24Content(property: PropertyRecord, records: Beds24ContentRecord[]) {
+  const slugKeys = Object.values(property.slugs).map(normalizeLookupValue);
+  const titleKeys = Object.values(property.title).map(normalizeLookupValue);
+
+  return (
+    records.find((entry) => entry.beds24RoomId === property.beds24RoomId) ??
+    records.find((entry) => entry.beds24PropertyId === property.beds24PropertyId) ??
+    records.find((entry) => {
+      const entryTitleKey = normalizeLookupValue(entry.title.de || entry.title.en || entry.title.es);
+      return slugKeys.includes(entryTitleKey) || titleKeys.includes(entryTitleKey);
+    }) ??
+    null
+  );
 }
 
 export async function getBeds24ContentRecords() {
@@ -281,6 +321,41 @@ export async function getBeds24ContentRecords() {
   } catch {
     return [];
   }
+}
+
+export async function getLiveBeds24ContentRecords() {
+  if (!isBeds24Configured()) return [];
+
+  const cached = await readCache<Beds24ContentRecord[]>('beds24-content', 'catalog_live');
+  if (cached) return cached;
+
+  const catalog = await fetchBeds24PropertyCatalog();
+  const seenKeys = new Set<string>();
+  const normalized = flattenRecords(catalog)
+    .map((record) => normalizeContentRecord(record))
+    .filter((record): record is Omit<Beds24ContentRecord, 'id' | 'lastSyncedAt'> => Boolean(record))
+    .filter((record) => {
+      const key = `${record.beds24PropertyId}:${record.beds24RoomId}`;
+      if (seenKeys.has(key)) return false;
+      seenKeys.add(key);
+      return true;
+    })
+    .map((record) => ({
+      id: `${record.beds24PropertyId}:${record.beds24RoomId}`,
+      ...record,
+      lastSyncedAt: new Date().toISOString(),
+    })) as Beds24ContentRecord[];
+
+  await writeCache('beds24-content', 'catalog_live', normalized, CATALOG_TTL_MS);
+  return normalized;
+}
+
+export async function resolveBeds24ContentForProperties(properties: PropertyRecord[]) {
+  const persisted = await getBeds24ContentRecords();
+  const live = persisted.length > 0 ? [] : await getLiveBeds24ContentRecords();
+  const sourceRecords = persisted.length > 0 ? persisted : live;
+
+  return properties.map((property) => mergePropertyWithBeds24Content(property, matchBeds24Content(property, sourceRecords)));
 }
 
 export async function syncBeds24PropertyContent() {
@@ -320,11 +395,6 @@ export async function syncBeds24PropertyContent() {
     const key = `${normalized.beds24PropertyId}:${normalized.beds24RoomId}`;
     if (seenKeys.has(key)) continue;
     seenKeys.add(key);
-
-    if (!normalized.heroImage && normalized.gallery.length === 0 && !hasText(normalized.description.de)) {
-      skipped.push(key);
-      continue;
-    }
 
     const payloadData = {
       internalName: normalized.title.de || normalized.title.en || normalized.title.es || key,
@@ -376,10 +446,21 @@ export async function syncBeds24PropertyContent() {
     }
   }
 
+  const staleKeys = [...existingByKey.keys()].filter((key) => !seenKeys.has(key));
+  for (const key of staleKeys) {
+    const existingDoc = existingByKey.get(key);
+    if (!existingDoc?.id) continue;
+    await payload.delete({
+      collection: 'beds24-property-content',
+      id: String(existingDoc.id),
+    });
+  }
+
   return {
     created,
     updated,
     skipped,
+    deleted: staleKeys,
     syncedAt: new Date().toISOString(),
   };
 }
