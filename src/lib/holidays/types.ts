@@ -233,3 +233,24 @@ export type Beds24Offer = {
   currency: string;
   minimumStay: number;
 };
+
+export type PropertyImageImportItem = {
+  beds24PropertyId?: number;
+  beds24RoomId?: number;
+  propertySlug?: string;
+  internalName?: string;
+  imageUrls: string[];
+  heroIndex?: number;
+};
+
+export type PropertyImageImportResult = {
+  propertyKey: string;
+  imported: number;
+  heroImageUrl: string;
+  galleryUrls: string[];
+  target: {
+    beds24PropertyId: number;
+    beds24RoomId: number;
+    internalName: string;
+  };
+};

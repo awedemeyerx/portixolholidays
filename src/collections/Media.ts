@@ -25,5 +25,15 @@ export const Media: CollectionConfig = {
       name: 'caption',
       type: 'text',
     },
+    {
+      name: 'sourceUrl',
+      type: 'text',
+      index: true,
+    },
+    {
+      name: 'sourceKey',
+      type: 'text',
+      index: true,
+    },
   ],
 };
