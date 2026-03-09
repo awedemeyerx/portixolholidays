@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { diffNights, formatStayDate, parseDate, toDateKey } from '@/lib/holidays/dates';
-import type { Locale } from '@/lib/holidays/types';
+import type { CalendarSnapshot, Locale } from '@/lib/holidays/types';
 
 type Props = {
   locale: Locale;
@@ -10,6 +10,7 @@ type Props = {
   checkOut: string;
   onChange: (next: { checkIn: string; checkOut: string }) => void;
   minDate?: string;
+  calendar?: CalendarSnapshot | null;
   labels: {
     arrival: string;
     departure: string;
@@ -29,6 +30,7 @@ type CalendarCell = {
   inMonth: boolean;
   disabled: boolean;
   isToday: boolean;
+  availability: 'available' | 'unavailable' | 'unknown';
 };
 
 function compareDateKeys(left: string, right: string) {
@@ -59,19 +61,22 @@ function startOfWeek(date: Date) {
   return next;
 }
 
-function buildMonthGrid(viewMonth: Date, minDate: string) {
+function buildMonthGrid(viewMonth: Date, minDate: string, calendar?: CalendarSnapshot | null) {
   const today = toDateKey(new Date());
   const gridStart = startOfWeek(viewMonth);
   return Array.from({ length: 42 }, (_, index): CalendarCell => {
     const cellDate = new Date(gridStart);
     cellDate.setDate(gridStart.getDate() + index);
     const key = toDateKey(cellDate);
+    const day = calendar?.days[key];
     return {
       key,
       dayLabel: String(cellDate.getDate()),
       inMonth: cellDate.getMonth() === viewMonth.getMonth(),
       disabled: compareDateKeys(key, minDate) < 0,
       isToday: key === today,
+      availability:
+        typeof day?.available === 'boolean' ? (day.available ? 'available' : 'unavailable') : 'unknown',
     };
   });
 }
@@ -90,7 +95,7 @@ function monthLabel(locale: Locale, date: Date) {
   return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(date);
 }
 
-export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, labels }: Props) {
+export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, calendar, labels }: Props) {
   const todayKey = useMemo(() => toDateKey(new Date()), []);
   const effectiveMinDate = minDate ?? todayKey;
   const [activeField, setActiveField] = useState<ActiveField>(checkIn ? 'checkOut' : 'checkIn');
@@ -208,7 +213,7 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
 
         <div className="grid gap-6 p-4 md:grid-cols-2">
           {months.map((month) => {
-            const monthCells = buildMonthGrid(month, effectiveMinDate);
+            const monthCells = buildMonthGrid(month, effectiveMinDate, calendar);
             const label = monthLabel(locale, month);
             return (
               <div key={label} className="space-y-3">
@@ -255,6 +260,8 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
                     const dayClass = [
                       'stay-day',
                       cell.inMonth ? 'stay-day-current' : 'stay-day-muted',
+                      cell.availability === 'available' ? 'stay-day-available' : '',
+                      cell.availability === 'unavailable' ? 'stay-day-unavailable' : '',
                       cell.disabled ? 'stay-day-disabled' : '',
                       cell.isToday ? 'stay-day-today' : '',
                       inPreviewRange ? (previewInvalid ? 'stay-day-invalid-range' : 'stay-day-range') : '',

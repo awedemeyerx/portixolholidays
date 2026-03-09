@@ -8,6 +8,7 @@ import { safeLocale } from '@/lib/holidays/locale';
 import { localeAlternates } from '@/lib/holidays/seo';
 import { getPropertyBySlug } from '@/lib/holidays/services/cms';
 import { getPropertyQuoteBySlug } from '@/lib/holidays/services/quote';
+import { getCalendarSnapshot } from '@/lib/holidays/services/search';
 import { loadMessages } from '@/lib/messages';
 import { searchQuerySchema } from '@/lib/holidays/validation';
 
@@ -57,6 +58,7 @@ export default async function PropertyPage({ params, searchParams }: Props) {
       : null;
 
   const quote = parsed.success ? await getPropertyQuoteBySlug(slug, parsed.data) : null;
+  const calendar = await getCalendarSnapshot(property);
   const bookingState = typeof rawSearchParams.booking === 'string' ? rawSearchParams.booking : null;
   const hasLocationLabel = Boolean(localized.locationLabel.trim());
   const hasDescription = Boolean(localized.description.trim());
@@ -171,6 +173,7 @@ export default async function PropertyPage({ params, searchParams }: Props) {
             selection={selection}
             query={parsed.success ? { checkIn: parsed.data.checkIn, checkOut: parsed.data.checkOut, guests: parsed.data.guests } : null}
             quote={quote}
+            calendar={calendar}
           />
         </section>
       </div>

@@ -5,7 +5,7 @@ import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { formatMoney } from '@/lib/holidays/dates';
 import { StaySearchForm } from '@/components/search/stay-search-form';
-import type { Locale, PropertyQuote } from '@/lib/holidays/types';
+import type { CalendarSnapshot, Locale, PropertyQuote } from '@/lib/holidays/types';
 
 type Props = {
   locale: Locale;
@@ -21,9 +21,10 @@ type Props = {
     guests: number;
   } | null;
   quote: PropertyQuote | null;
+  calendar: CalendarSnapshot | null;
 };
 
-export function BookingPanel({ locale, slug, selection, query, quote }: Props) {
+export function BookingPanel({ locale, slug, selection, query, quote, calendar }: Props) {
   const t = useTranslations('Property');
   const searchT = useTranslations('Search');
   const router = useRouter();
@@ -111,6 +112,7 @@ export function BookingPanel({ locale, slug, selection, query, quote }: Props) {
           submitLabel={t('checkAvailability')}
           loadingLabel={searchT('loading')}
           isPending={isUpdatingStay}
+          calendar={calendar}
           onSubmit={updateStay}
           onClear={clearStay}
           submitClassName="rounded-full bg-ink px-5 py-4 text-sm font-medium text-foam transition hover:bg-sea disabled:opacity-60"

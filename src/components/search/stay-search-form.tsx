@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { diffNights } from '@/lib/holidays/dates';
-import type { Locale } from '@/lib/holidays/types';
+import type { CalendarSnapshot, Locale } from '@/lib/holidays/types';
 import { DateRangePicker } from './date-range-picker';
 
 type Props = {
@@ -15,6 +15,7 @@ type Props = {
   helperText?: string;
   isPending?: boolean;
   submitClassName?: string;
+  calendar?: CalendarSnapshot | null;
   onSubmit: (query: { checkIn: string; checkOut: string; guests: number }) => void;
   onClear?: () => void;
   labels: {
@@ -39,6 +40,7 @@ export function StaySearchForm({
   helperText,
   isPending,
   submitClassName,
+  calendar,
   onSubmit,
   onClear,
   labels,
@@ -84,6 +86,7 @@ export function StaySearchForm({
           setCheckIn(nextCheckIn);
           setCheckOut(nextCheckOut);
         }}
+        calendar={calendar}
         labels={labels}
       />
 

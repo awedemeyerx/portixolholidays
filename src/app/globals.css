@@ -145,6 +145,24 @@ select {
   background: rgba(62, 146, 168, 0.09);
 }
 
+.stay-day-available {
+  background: linear-gradient(180deg, rgba(220, 239, 227, 0.92), rgba(239, 248, 241, 0.92));
+  color: rgba(35, 90, 62, 0.96);
+}
+
+.stay-day-available:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(196, 228, 207, 0.98), rgba(229, 243, 233, 0.98));
+}
+
+.stay-day-unavailable {
+  background: linear-gradient(180deg, rgba(244, 234, 233, 0.92), rgba(239, 239, 242, 0.96));
+  color: rgba(118, 106, 115, 0.92);
+}
+
+.stay-day-unavailable:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(239, 226, 224, 0.98), rgba(233, 233, 238, 0.98));
+}
+
 .stay-day-current {
   opacity: 1;
 }
