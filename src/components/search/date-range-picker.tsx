@@ -126,7 +126,10 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
   const weekdays = useMemo(() => weekdayLabels(locale), [locale]);
   const months = useMemo(() => [visibleMonth, addMonths(visibleMonth, 1)], [visibleMonth]);
   const invalidRange = Boolean(checkIn && checkOut && diffNights(checkIn, checkOut) <= 0);
-  const previewEnd = activeField === 'checkOut' && hoveredDate ? hoveredDate : checkOut;
+  const previewEnd =
+    activeField === 'checkOut' && hoveredDate && checkIn && compareDateKeys(hoveredDate, checkIn) > 0
+      ? hoveredDate
+      : checkOut;
   const previewInvalid = Boolean(checkIn && previewEnd && compareDateKeys(previewEnd, checkIn) <= 0);
   const hasValidRange = Boolean(checkIn && checkOut && !invalidRange);
   const totalNights = hasValidRange ? diffNights(checkIn, checkOut) : 0;
@@ -139,10 +142,15 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
       return;
     }
 
-    onChange({ checkIn, checkOut: nextDate });
-    if (compareDateKeys(nextDate, checkIn) > 0) {
-      setActiveField('checkIn');
+    if (compareDateKeys(nextDate, checkIn) <= 0) {
+      onChange({ checkIn: nextDate, checkOut: '' });
+      setActiveField('checkOut');
+      setHoveredDate('');
+      return;
     }
+
+    onChange({ checkIn, checkOut: nextDate });
+    setActiveField('checkIn');
     setHoveredDate('');
   }
 
