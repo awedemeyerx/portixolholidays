@@ -255,3 +255,24 @@ export type PropertyImageImportResult = {
     internalName: string;
   };
 };
+
+export type PropertyTextImportItem = {
+  beds24PropertyId?: number;
+  beds24RoomId?: number;
+  propertySlug?: string;
+  internalName?: string;
+  summary: Localized;
+  description: Localized;
+  locationLabel?: Localized;
+};
+
+export type PropertyTextImportResult = {
+  propertyKey: string;
+  target: {
+    beds24PropertyId: number;
+    beds24RoomId: number;
+    internalName: string;
+  };
+  summary: Localized;
+  locationLabel: Localized;
+};

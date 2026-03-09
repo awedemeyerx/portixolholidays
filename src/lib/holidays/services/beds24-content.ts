@@ -323,6 +323,10 @@ export function mergePropertyWithBeds24Content(property: PropertyRecord, content
     summary: hasVerifiedText ? mergeLocalizedPreferBase(property.summary, content.summary) : property.summary,
     description: hasVerifiedText ? mergeLocalizedPreferBase(property.description, content.description) : property.description,
     locationLabel: hasVerifiedText ? mergeLocalizedPreferBase(property.locationLabel, content.locationLabel) : property.locationLabel,
+    seoTitle: mergeLocalizedPreferBase(property.seoTitle, content.title),
+    seoDescription: hasVerifiedText
+      ? mergeLocalizedPreferBase(property.seoDescription, content.summary)
+      : property.seoDescription,
     heroImage: verifiedHeroImage || property.heroImage,
     gallery: verifiedGallery.length > 0 ? verifiedGallery : property.gallery,
     bedrooms: content.bedrooms ?? property.bedrooms,

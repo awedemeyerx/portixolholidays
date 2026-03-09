@@ -91,7 +91,9 @@ export default async function PropertyPage({ params, searchParams }: Props) {
           <div className="glass-card rounded-[2rem] p-6 md:p-8">
             {hasLocationLabel ? <p className="label-caps text-xs text-sea">{localized.locationLabel}</p> : null}
             <h1 className="mt-3 font-serif text-5xl leading-none">{localized.title}</h1>
-            {hasDescription ? <p className="mt-4 max-w-3xl text-base leading-8 text-ink/72">{localized.description}</p> : null}
+            {hasDescription ? (
+              <p className="mt-4 max-w-3xl whitespace-pre-line text-base leading-8 text-ink/72">{localized.description}</p>
+            ) : null}
 
             <div className="mt-6 flex flex-wrap gap-3">
               {localized.highlights.map((highlight) => (
