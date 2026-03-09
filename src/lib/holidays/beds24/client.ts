@@ -205,7 +205,7 @@ export async function fetchBeds24Calendar(property: PropertyRecord): Promise<Cal
     };
   }
 
-  const days: CalendarSnapshot['days'] = {};
+  const days: CalendarSnapshot['days'] = buildFallbackCalendar(property);
   const availability = await fetchBeds24AvailabilityMap(property.beds24RoomId);
   Object.entries(availability).forEach(([day, available]) => {
     days[day] = {

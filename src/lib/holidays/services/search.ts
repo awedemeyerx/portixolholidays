@@ -17,7 +17,7 @@ const CALENDAR_TTL_MS = 6 * 60 * 60 * 1000;
 const OFFER_TTL_MS = 5 * 60 * 1000;
 
 export async function getCalendarSnapshot(property: PropertyRecord) {
-  const key = `room_${property.beds24RoomId}`;
+  const key = `room_${property.beds24RoomId}_v2`;
   const cached = await readCache<CalendarSnapshot>('calendar', key);
   if (cached) return cached;
 

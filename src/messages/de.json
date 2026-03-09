@@ -38,6 +38,7 @@
     "rules": "Hausregeln",
     "booking": "Buchung",
     "bookingHint": "Deine gewählten Daten werden vor der Zahlung nochmals live geprüft.",
+    "checkingQuote": "Preis und Verfügbarkeit werden live geprüft.",
     "quoteMissing": "Wähle hier direkt deinen Zeitraum, um Preis und Verfügbarkeit zu sehen.",
     "quoteUnavailable": "Für diese Auswahl konnten wir aktuell kein buchbares Angebot ermitteln. Bitte probiere einen anderen Zeitraum.",
     "staySelection": "Zeitraum wählen",

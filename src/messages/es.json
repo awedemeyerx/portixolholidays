@@ -38,6 +38,7 @@
     "rules": "Normas",
     "booking": "Reserva",
     "bookingHint": "Las fechas elegidas se validan otra vez en tiempo real antes del pago.",
+    "checkingQuote": "Comprobando precio y disponibilidad en vivo.",
     "quoteMissing": "Elige aquí mismo tu estancia para ver precio y disponibilidad.",
     "quoteUnavailable": "Ahora mismo no hemos podido obtener una oferta reservable para esta selección. Prueba con otras fechas.",
     "staySelection": "Elegir estancia",

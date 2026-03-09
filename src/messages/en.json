@@ -38,6 +38,7 @@
     "rules": "House rules",
     "booking": "Booking",
     "bookingHint": "Your selected dates are rechecked live before payment.",
+    "checkingQuote": "Checking live price and availability.",
     "quoteMissing": "Choose your stay right here to see live pricing and continue.",
     "quoteUnavailable": "We could not find a bookable offer for this selection right now. Please try different dates.",
     "staySelection": "Choose your stay",
