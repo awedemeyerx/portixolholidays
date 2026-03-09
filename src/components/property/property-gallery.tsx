@@ -134,7 +134,7 @@ export function PropertyGallery({ title, images, labels }: Props) {
           <button
             type="button"
             onClick={closeLightbox}
-            className="absolute right-4 top-4 rounded-full border border-white/18 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/18"
+            className="absolute right-4 top-4 rounded-full border border-white/24 bg-ink/78 px-4 py-2 text-sm font-medium text-white shadow-[0_18px_45px_rgba(0,0,0,0.35)] backdrop-blur-xl transition hover:bg-ink/90"
             aria-label={labels.close}
           >
             {labels.close}
@@ -147,10 +147,12 @@ export function PropertyGallery({ title, images, labels }: Props) {
                 event.stopPropagation();
                 showPrevious();
               }}
-              className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full border border-white/18 bg-white/10 p-3 text-white transition hover:bg-white/18 md:left-6"
+              className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full border border-white/24 bg-ink/78 p-3 text-white shadow-[0_18px_45px_rgba(0,0,0,0.35)] backdrop-blur-xl transition hover:bg-ink/90 md:left-6"
               aria-label={labels.previous}
             >
-              <span aria-hidden="true">←</span>
+              <span aria-hidden="true" className="block text-lg leading-none">
+                ←
+              </span>
             </button>
           ) : null}
 
@@ -182,10 +184,12 @@ export function PropertyGallery({ title, images, labels }: Props) {
                 event.stopPropagation();
                 showNext();
               }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-white/18 bg-white/10 p-3 text-white transition hover:bg-white/18 md:right-6"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-white/24 bg-ink/78 p-3 text-white shadow-[0_18px_45px_rgba(0,0,0,0.35)] backdrop-blur-xl transition hover:bg-ink/90 md:right-6"
               aria-label={labels.next}
             >
-              <span aria-hidden="true">→</span>
+              <span aria-hidden="true" className="block text-lg leading-none">
+                →
+              </span>
             </button>
           ) : null}
         </div>
