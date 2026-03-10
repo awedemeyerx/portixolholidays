@@ -171,18 +171,18 @@ select {
   background: rgba(239, 216, 222, 0.99);
 }
 
-.stay-day-available::after,
-.stay-day-unavailable::after {
+.stay-day-unavailable::before {
   content: '';
   position: absolute;
-  left: 50%;
-  bottom: 0.38rem;
-  width: 0.28rem;
-  height: 0.28rem;
-  border-radius: 999px;
-  background: currentColor;
-  transform: translateX(-50%);
-  opacity: 0.7;
+  inset: 0.45rem;
+  background: linear-gradient(
+    135deg,
+    transparent 46%,
+    rgba(136, 88, 100, 0.34) 46%,
+    rgba(136, 88, 100, 0.34) 54%,
+    transparent 54%
+  );
+  pointer-events: none;
 }
 
 .stay-day-current {
@@ -196,6 +196,10 @@ select {
 .stay-day-disabled {
   cursor: not-allowed;
   opacity: 0.2;
+}
+
+.stay-day-locked {
+  cursor: not-allowed;
 }
 
 .stay-day-today {
@@ -216,7 +220,29 @@ select {
   color: var(--foam);
 }
 
+.stay-day-transition-in::after,
+.stay-day-transition-checkout::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 45%;
+  clip-path: polygon(0 50%, 100% 0, 100% 100%);
+  pointer-events: none;
+}
+
+.stay-day-transition-in::after {
+  background: rgba(244, 226, 231, 0.97);
+}
+
+.stay-day-transition-checkout::after {
+  background: rgba(219, 241, 225, 0.96);
+}
+
+.stay-day-boundary::before,
 .stay-day-boundary::after,
+.stay-day-invalid-boundary::before,
 .stay-day-invalid-boundary::after {
   display: none;
 }

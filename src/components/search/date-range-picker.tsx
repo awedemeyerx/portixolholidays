@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { diffNights, formatStayDate, parseDate, toDateKey } from '@/lib/holidays/dates';
+import { addDays, diffNights, enumerateNights, formatStayDate, parseDate, toDateKey } from '@/lib/holidays/dates';
 import type { CalendarSnapshot, Locale } from '@/lib/holidays/types';
 
 type Props = {
@@ -28,9 +28,11 @@ type CalendarCell = {
   key: string;
   dayLabel: string;
   inMonth: boolean;
-  disabled: boolean;
+  pastDisabled: boolean;
   isToday: boolean;
   availability: 'available' | 'unavailable';
+  previousAvailability: 'available' | 'unavailable';
+  nextAvailability: 'available' | 'unavailable';
 };
 
 function compareDateKeys(left: string, right: string) {
@@ -61,6 +63,15 @@ function startOfWeek(date: Date) {
   return next;
 }
 
+function resolveAvailability(dateKey: string, minDate: string, calendar?: CalendarSnapshot | null) {
+  const day = calendar?.days[dateKey];
+  if (typeof day?.available === 'boolean') {
+    return day.available ? 'available' : 'unavailable';
+  }
+
+  return compareDateKeys(dateKey, minDate) < 0 ? 'unavailable' : 'available';
+}
+
 function buildMonthGrid(viewMonth: Date, minDate: string, calendar?: CalendarSnapshot | null) {
   const today = toDateKey(new Date());
   const gridStart = startOfWeek(viewMonth);
@@ -68,21 +79,16 @@ function buildMonthGrid(viewMonth: Date, minDate: string, calendar?: CalendarSna
     const cellDate = new Date(gridStart);
     cellDate.setDate(gridStart.getDate() + index);
     const key = toDateKey(cellDate);
-    const day = calendar?.days[key];
+    const availability = resolveAvailability(key, minDate, calendar);
     return {
       key,
       dayLabel: String(cellDate.getDate()),
       inMonth: cellDate.getMonth() === viewMonth.getMonth(),
-      disabled: compareDateKeys(key, minDate) < 0,
+      pastDisabled: compareDateKeys(key, minDate) < 0,
       isToday: key === today,
-      availability:
-        typeof day?.available === 'boolean'
-          ? day.available
-            ? 'available'
-            : 'unavailable'
-          : compareDateKeys(key, minDate) < 0
-            ? 'unavailable'
-            : 'available',
+      availability,
+      previousAvailability: resolveAvailability(addDays(key, -1), minDate, calendar),
+      nextAvailability: resolveAvailability(addDays(key, 1), minDate, calendar),
     };
   });
 }
@@ -99,6 +105,32 @@ function weekdayLabels(locale: Locale) {
 
 function monthLabel(locale: Locale, date: Date) {
   return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(date);
+}
+
+function canSelectDate({
+  activeField,
+  checkIn,
+  dateKey,
+  minDate,
+  calendar,
+}: {
+  activeField: ActiveField;
+  checkIn: string;
+  dateKey: string;
+  minDate: string;
+  calendar?: CalendarSnapshot | null;
+}) {
+  if (compareDateKeys(dateKey, minDate) < 0) return false;
+
+  if (!checkIn || activeField === 'checkIn') {
+    return resolveAvailability(dateKey, minDate, calendar) === 'available';
+  }
+
+  if (compareDateKeys(dateKey, checkIn) <= 0) {
+    return resolveAvailability(dateKey, minDate, calendar) === 'available';
+  }
+
+  return enumerateNights(checkIn, dateKey).every((night) => resolveAvailability(night, minDate, calendar) === 'available');
 }
 
 export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, calendar, labels }: Props) {
@@ -141,7 +173,11 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
   );
   const invalidRange = Boolean(checkIn && checkOut && diffNights(checkIn, checkOut) <= 0);
   const previewEnd =
-    activeField === 'checkOut' && hoveredDate && checkIn && compareDateKeys(hoveredDate, checkIn) > 0
+    activeField === 'checkOut' &&
+    hoveredDate &&
+    checkIn &&
+    compareDateKeys(hoveredDate, checkIn) > 0 &&
+    canSelectDate({ activeField, checkIn, dateKey: hoveredDate, minDate: effectiveMinDate, calendar })
       ? hoveredDate
       : checkOut;
   const previewInvalid = Boolean(checkIn && previewEnd && compareDateKeys(previewEnd, checkIn) <= 0);
@@ -149,6 +185,10 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
   const totalNights = hasValidRange ? diffNights(checkIn, checkOut) : 0;
 
   function selectDate(nextDate: string) {
+    if (!canSelectDate({ activeField, checkIn, dateKey: nextDate, minDate: effectiveMinDate, calendar })) {
+      return;
+    }
+
     if (!checkIn || activeField === 'checkIn') {
       onChange({ checkIn: nextDate, checkOut: '' });
       setActiveField('checkOut');
@@ -260,6 +300,19 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
                   {monthCells.map((cell) => {
                     const isStart = cell.key === checkIn;
                     const isEnd = cell.key === checkOut;
+                    const selectable = canSelectDate({
+                      activeField,
+                      checkIn,
+                      dateKey: cell.key,
+                      minDate: effectiveMinDate,
+                      calendar,
+                    });
+                    const checkoutOnly =
+                      cell.availability === 'unavailable' &&
+                      Boolean(checkIn) &&
+                      activeField === 'checkOut' &&
+                      compareDateKeys(cell.key, checkIn) > 0 &&
+                      selectable;
                     const hasPreview = Boolean(checkIn && previewEnd);
                     const lowerBoundary = hasPreview
                       ? compareDateKeys(checkIn, previewEnd || checkIn) <= 0
@@ -282,8 +335,13 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
                       cell.inMonth ? 'stay-day-current' : 'stay-day-muted',
                       cell.availability === 'available' ? 'stay-day-available' : '',
                       cell.availability === 'unavailable' ? 'stay-day-unavailable' : '',
-                      cell.disabled ? 'stay-day-disabled' : '',
+                      cell.pastDisabled ? 'stay-day-disabled' : '',
+                      !cell.pastDisabled && !selectable ? 'stay-day-locked' : '',
                       cell.isToday ? 'stay-day-today' : '',
+                      cell.availability === 'available' && cell.previousAvailability === 'unavailable'
+                        ? 'stay-day-transition-in'
+                        : '',
+                      checkoutOnly ? 'stay-day-transition-checkout' : '',
                       inPreviewRange ? (previewInvalid ? 'stay-day-invalid-range' : 'stay-day-range') : '',
                       isStart || isEnd ? (previewInvalid ? 'stay-day-invalid-boundary' : 'stay-day-boundary') : '',
                     ]
@@ -294,12 +352,13 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
                       <button
                         key={cell.key}
                         type="button"
-                        disabled={cell.disabled}
+                        disabled={cell.pastDisabled || !selectable}
                         onClick={() => selectDate(cell.key)}
-                        onMouseEnter={() => !cell.disabled && setHoveredDate(cell.key)}
+                        onMouseEnter={() => selectable && setHoveredDate(cell.key)}
                         onMouseLeave={() => setHoveredDate('')}
                         className={dayClass}
                         aria-pressed={isStart || isEnd}
+                        aria-disabled={cell.pastDisabled || !selectable}
                       >
                         {cell.dayLabel}
                       </button>

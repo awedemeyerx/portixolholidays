@@ -207,6 +207,21 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
 
       {activeQuote && activeQuery ? (
         <form onSubmit={onSubmit} className="mt-6 space-y-6">
+          <section className="rounded-[1.5rem] bg-white/70 p-4">
+            <h3 className="label-caps text-[11px] text-sea">{t('summary')}</h3>
+            <div className="mt-3 space-y-2 text-sm text-ink/72">
+              <p>{t('nights')}: {activeQuote.quote.nights}</p>
+              <p>{t('cancellation')}: {activeQuote.cancellationSummary}</p>
+              <p>Subtotal: {formatMoney(activeQuote.quote.subtotal, activeQuote.quote.currency, locale)}</p>
+              <p>Cleaning: {formatMoney(activeQuote.quote.cleaningFee, activeQuote.quote.currency, locale)}</p>
+              <p>Taxes: {formatMoney(activeQuote.quote.taxes, activeQuote.quote.currency, locale)}</p>
+              <p className="font-medium text-ink">Total: {formatMoney(activeQuote.quote.totalPrice, activeQuote.quote.currency, locale)}</p>
+              <p className="font-medium text-terracotta">
+                {t('payDeposit')}: {formatMoney(activeQuote.quote.depositAmount, activeQuote.quote.currency, locale)}
+              </p>
+            </div>
+          </section>
+
           <section className="space-y-4">
             <h3 className="label-caps text-[11px] text-sea">{t('guestDetails')}</h3>
             <div className="grid gap-4 md:grid-cols-2">
@@ -268,21 +283,6 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
               />
               <span>{t('acceptPrivacy')}</span>
             </label>
-          </section>
-
-          <section className="rounded-[1.5rem] bg-white/70 p-4">
-            <h3 className="label-caps text-[11px] text-sea">{t('summary')}</h3>
-            <div className="mt-3 space-y-2 text-sm text-ink/72">
-              <p>{t('nights')}: {activeQuote.quote.nights}</p>
-              <p>{t('cancellation')}: {activeQuote.cancellationSummary}</p>
-              <p>Subtotal: {formatMoney(activeQuote.quote.subtotal, activeQuote.quote.currency, locale)}</p>
-              <p>Cleaning: {formatMoney(activeQuote.quote.cleaningFee, activeQuote.quote.currency, locale)}</p>
-              <p>Taxes: {formatMoney(activeQuote.quote.taxes, activeQuote.quote.currency, locale)}</p>
-              <p className="font-medium text-ink">Total: {formatMoney(activeQuote.quote.totalPrice, activeQuote.quote.currency, locale)}</p>
-              <p className="font-medium text-terracotta">
-                {t('payDeposit')}: {formatMoney(activeQuote.quote.depositAmount, activeQuote.quote.currency, locale)}
-              </p>
-            </div>
           </section>
 
           {error ? <p className="rounded-2xl bg-terracotta/10 px-4 py-3 text-sm text-terracotta">{error}</p> : null}
