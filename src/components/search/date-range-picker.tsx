@@ -30,7 +30,7 @@ type CalendarCell = {
   inMonth: boolean;
   disabled: boolean;
   isToday: boolean;
-  availability: 'available' | 'unavailable' | 'unknown';
+  availability: 'available' | 'unavailable';
 };
 
 function compareDateKeys(left: string, right: string) {
@@ -76,7 +76,13 @@ function buildMonthGrid(viewMonth: Date, minDate: string, calendar?: CalendarSna
       disabled: compareDateKeys(key, minDate) < 0,
       isToday: key === today,
       availability:
-        typeof day?.available === 'boolean' ? (day.available ? 'available' : 'unavailable') : 'unknown',
+        typeof day?.available === 'boolean'
+          ? day.available
+            ? 'available'
+            : 'unavailable'
+          : compareDateKeys(key, minDate) < 0
+            ? 'unavailable'
+            : 'available',
     };
   });
 }

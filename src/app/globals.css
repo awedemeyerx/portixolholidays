@@ -132,12 +132,13 @@ select {
 }
 
 .stay-day {
+  position: relative;
   aspect-ratio: 1 / 1;
   border: 0;
   border-radius: 1rem;
   background: rgba(255, 255, 255, 0.74);
   color: var(--ink);
-  transition: transform 160ms ease, background 160ms ease, color 160ms ease, opacity 160ms ease;
+  transition: transform 160ms ease, background 160ms ease, color 160ms ease, opacity 160ms ease, box-shadow 160ms ease;
 }
 
 .stay-day:hover:not(:disabled) {
@@ -146,21 +147,37 @@ select {
 }
 
 .stay-day-available {
-  background: linear-gradient(180deg, rgba(220, 239, 227, 0.92), rgba(239, 248, 241, 0.92));
-  color: rgba(35, 90, 62, 0.96);
+  background: linear-gradient(180deg, rgba(214, 239, 220, 0.98), rgba(234, 247, 237, 0.98));
+  box-shadow: inset 0 0 0 1px rgba(86, 150, 106, 0.18);
+  color: rgba(36, 94, 54, 0.96);
 }
 
 .stay-day-available:hover:not(:disabled) {
-  background: linear-gradient(180deg, rgba(196, 228, 207, 0.98), rgba(229, 243, 233, 0.98));
+  background: linear-gradient(180deg, rgba(197, 231, 205, 0.99), rgba(223, 242, 228, 0.99));
 }
 
 .stay-day-unavailable {
-  background: linear-gradient(180deg, rgba(244, 234, 233, 0.92), rgba(239, 239, 242, 0.96));
-  color: rgba(118, 106, 115, 0.92);
+  background: linear-gradient(180deg, rgba(246, 224, 229, 0.98), rgba(242, 232, 236, 0.99));
+  box-shadow: inset 0 0 0 1px rgba(178, 120, 133, 0.16);
+  color: rgba(136, 88, 100, 0.95);
 }
 
 .stay-day-unavailable:hover:not(:disabled) {
-  background: linear-gradient(180deg, rgba(239, 226, 224, 0.98), rgba(233, 233, 238, 0.98));
+  background: linear-gradient(180deg, rgba(240, 212, 219, 0.99), rgba(238, 225, 230, 0.99));
+}
+
+.stay-day-available::after,
+.stay-day-unavailable::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0.38rem;
+  width: 0.28rem;
+  height: 0.28rem;
+  border-radius: 999px;
+  background: currentColor;
+  transform: translateX(-50%);
+  opacity: 0.7;
 }
 
 .stay-day-current {
@@ -192,6 +209,11 @@ select {
 .stay-day-boundary {
   background: linear-gradient(180deg, rgba(62, 146, 168, 0.96), rgba(31, 112, 129, 0.96));
   color: var(--foam);
+}
+
+.stay-day-boundary::after,
+.stay-day-invalid-boundary::after {
+  display: none;
 }
 
 .stay-day-invalid-boundary {
