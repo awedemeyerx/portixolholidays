@@ -120,14 +120,19 @@ function canSelectDate({
   minDate: string;
   calendar?: CalendarSnapshot | null;
 }) {
+  const day = calendar?.days[dateKey];
   if (compareDateKeys(dateKey, minDate) < 0) return false;
 
   if (!checkIn || activeField === 'checkIn') {
-    return resolveAvailability(dateKey, minDate, calendar) === 'available';
+    return resolveAvailability(dateKey, minDate, calendar) === 'available' && day?.closedArrival !== true;
   }
 
   if (compareDateKeys(dateKey, checkIn) <= 0) {
-    return resolveAvailability(dateKey, minDate, calendar) === 'available';
+    return resolveAvailability(dateKey, minDate, calendar) === 'available' && day?.closedArrival !== true;
+  }
+
+  if (day?.closedDeparture === true) {
+    return false;
   }
 
   return enumerateNights(checkIn, dateKey).every((night) => resolveAvailability(night, minDate, calendar) === 'available');

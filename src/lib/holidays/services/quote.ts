@@ -2,9 +2,15 @@ import { fetchBeds24Availability, fetchBeds24Offers, fallbackOffer, isBeds24Conf
 import { diffNights } from '../dates';
 import { localizeProperty } from '../localize';
 import { getPropertyBySlug } from './cms';
+import { getInventorySnapshot, quoteFromInventorySnapshot } from './inventory-snapshots';
 import type { Beds24Offer, PropertyQuote, SearchQuery } from '../types';
 
-function toQuote(offer: Beds24Offer, propertyId: string, localeData: ReturnType<typeof localizeProperty>, locale: SearchQuery['locale']): PropertyQuote {
+function toLiveQuote(
+  offer: Beds24Offer,
+  propertyId: string,
+  localeData: ReturnType<typeof localizeProperty>,
+  locale: SearchQuery['locale'],
+): PropertyQuote {
   const nights = Math.max(1, Math.round((offer.totalPrice - offer.cleaningFee - offer.taxes) / Math.max(offer.pricePerNight, 1)));
   return {
     propertyId,
@@ -49,13 +55,13 @@ export async function getPropertyQuoteBySlug(
 
   const localized = localizeProperty(property, query.locale);
   const nights = diffNights(query.checkIn, query.checkOut);
-  if (nights < property.pricing.minStay) return null;
+  if (nights <= 0) return null;
 
-  let offer: Beds24Offer = fallbackOffer(property, query);
+  if (options?.forceLive) {
+    let offer: Beds24Offer = fallbackOffer(property, query);
 
-  if (isBeds24Configured()) {
-    try {
-      if (options?.forceLive) {
+    if (isBeds24Configured()) {
+      try {
         const stillAvailable = await fetchBeds24Availability(query, property.beds24RoomId);
         if (!stillAvailable) {
           offer = { ...offer, available: false };
@@ -63,24 +69,47 @@ export async function getPropertyQuoteBySlug(
           const [liveOffer] = await fetchBeds24Offers(query, [property.beds24RoomId]);
           if (liveOffer) offer = liveOffer;
         }
-      } else {
-        const [cachedOffer] = await fetchBeds24Offers(query, [property.beds24RoomId]);
-        if (cachedOffer) offer = cachedOffer;
+      } catch {
+        offer = fallbackOffer(property, query);
       }
-    } catch {
-      offer = fallbackOffer(property, query);
     }
+
+    const liveQuote = toLiveQuote(offer, property.id, localized, query.locale);
+    liveQuote.heroImage = property.heroImage;
+    liveQuote.gallery = property.gallery;
+    liveQuote.bedrooms = property.bedrooms;
+    liveQuote.bathrooms = property.bathrooms;
+    liveQuote.maxGuests = property.maxGuests;
+    liveQuote.quote.nights = nights;
+    liveQuote.quote.subtotal = offer.pricePerNight * nights;
+    liveQuote.quote.depositAmount = Math.round(offer.totalPrice * property.pricing.depositRate);
+
+    return liveQuote;
   }
 
-  const quote = toQuote(offer, property.id, localized, query.locale);
-  quote.heroImage = property.heroImage;
-  quote.gallery = property.gallery;
-  quote.bedrooms = property.bedrooms;
-  quote.bathrooms = property.bathrooms;
-  quote.maxGuests = property.maxGuests;
-  quote.quote.nights = nights;
-  quote.quote.subtotal = offer.pricePerNight * nights;
-  quote.quote.depositAmount = Math.round(offer.totalPrice * property.pricing.depositRate);
+  const snapshot = await getInventorySnapshot(property);
+  const priced = quoteFromInventorySnapshot(property, query, snapshot);
+  if (!priced) return null;
 
-  return quote;
+  return {
+    propertyId: property.id,
+    slug: localized.slug,
+    title: localized.title,
+    summary: localized.summary,
+    description: localized.description,
+    heroImage: property.heroImage,
+    gallery: property.gallery,
+    locationLabel: localized.locationLabel,
+    distanceLabel: localized.distanceLabel,
+    bedrooms: property.bedrooms,
+    bathrooms: property.bathrooms,
+    maxGuests: property.maxGuests,
+    highlights: localized.highlights,
+    amenities: localized.amenities,
+    houseRules: localized.houseRules,
+    cancellationSummary: localized.cancellationSummary,
+    quote: priced.quote,
+    available: true,
+    locale: query.locale,
+  } satisfies PropertyQuote;
 }

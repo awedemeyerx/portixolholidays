@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { deleteCacheByPrefix } from '@/lib/holidays/cache/json-store';
+import { syncBeds24InventorySnapshots } from '@/lib/holidays/services/inventory-snapshots';
 
 function isAuthorized(request: Request) {
   const configuredSecret = process.env.BEDS24_WEBHOOK_SECRET?.trim();
@@ -15,13 +15,9 @@ export async function POST(request: Request) {
   const payload = (await request.json().catch(() => ({}))) as { roomId?: string | number };
   const roomId = payload.roomId ? String(payload.roomId) : '';
 
-  if (roomId) {
-    await deleteCacheByPrefix('calendar', `room_${roomId}`);
-    await deleteCacheByPrefix('offers', `offers_${roomId}`);
-  } else {
-    await deleteCacheByPrefix('calendar', 'room_');
-    await deleteCacheByPrefix('offers', 'offers_');
-  }
+  await syncBeds24InventorySnapshots({
+    roomIds: roomId ? [Number(roomId)] : undefined,
+  });
 
   return NextResponse.json({ received: true });
 }

@@ -1,6 +1,18 @@
 import type { Beds24Offer, BookingSessionRecord, CalendarSnapshot, PropertyRecord, SearchQuery } from '../types';
 import { addDays, diffNights, enumerateNights, toDateKey } from '../dates';
 
+type RawDoc = Record<string, unknown>;
+
+type Beds24CalendarEntry = {
+  from: string;
+  to: string;
+  numAvail?: number;
+  minStay?: number;
+  price1?: number;
+  closedArrival?: boolean;
+  closedDeparture?: boolean;
+};
+
 type Beds24TokenState = {
   token: string;
   expiresAt: number;
@@ -87,6 +99,22 @@ async function beds24Request<T>(
   if (!response.ok) {
     const message = await response.text();
     throw new Error(`Beds24 ${pathname} failed (${response.status}): ${message}`);
+  }
+
+  return (await response.json()) as T;
+}
+
+async function beds24RequestByLink<T>(ref: string) {
+  const token = await getBeds24Token();
+  const response = await fetch(ref, {
+    method: 'GET',
+    headers: beds24Headers(token),
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(`Beds24 request failed (${response.status}): ${message}`);
   }
 
   return (await response.json()) as T;
@@ -188,8 +216,11 @@ function buildFallbackCalendar(property: PropertyRecord) {
     const isBlocked = property.blockedRanges.some((range) => key >= range.from && key < range.to);
     days[key] = {
       available: !isBlocked,
+      numAvail: isBlocked ? 0 : 1,
       minStay: property.pricing.minStay,
       price: property.pricing.nightly,
+      closedArrival: isBlocked,
+      closedDeparture: false,
     };
   }
   return days;
@@ -199,36 +230,121 @@ export async function fetchBeds24Calendar(property: PropertyRecord): Promise<Cal
   if (!isBeds24Configured()) {
     return {
       roomId: property.beds24RoomId,
+      propertyId: property.beds24PropertyId,
       generatedAt: new Date().toISOString(),
       source: 'fallback',
+      from: toDateKey(new Date()),
+      to: addDays(toDateKey(new Date()), 364),
       days: buildFallbackCalendar(property),
     };
   }
 
-  const days: CalendarSnapshot['days'] = buildFallbackCalendar(property);
-  const availability = await fetchBeds24AvailabilityMap(property.beds24RoomId);
-  Object.entries(availability).forEach(([day, available]) => {
-    days[day] = {
-      available,
-      minStay: property.pricing.minStay,
-      price: property.pricing.nightly,
+  const todayKey = toDateKey(new Date());
+  const horizonEnd = addDays(todayKey, 364);
+  const ranges: Beds24CalendarEntry[] = [];
+
+  let response = await beds24Request<{
+    data?: Array<{
+      roomId?: number;
+      propertyId?: number;
+      calendar?: RawDoc[];
+    }>;
+    pages?: {
+      nextPageExists?: boolean;
+      nextPageLink?: string | null;
     };
+  }>('/inventory/rooms/calendar', {
+    searchParams: {
+      roomId: String(property.beds24RoomId),
+      from: todayKey,
+      to: horizonEnd,
+      includeNumAvail: 'true',
+      includePrices: 'true',
+      includeMinStay: 'true',
+      includeClosedArrival: 'true',
+      includeClosedDeparture: 'true',
+    },
   });
 
-  if (Object.keys(days).length === 0) {
+  for (;;) {
+    const record = response.data?.find((entry) => Number(entry.roomId ?? 0) === property.beds24RoomId);
+    const calendarEntries = Array.isArray(record?.calendar) ? record.calendar : [];
+    ranges.push(
+      ...calendarEntries.map((entry) => ({
+        from: String(entry.from ?? ''),
+        to: String(entry.to ?? ''),
+        numAvail: Number(entry.numAvail ?? 0),
+        minStay: Number(entry.minStay ?? property.pricing.minStay),
+        price1: Number(entry.price1 ?? property.pricing.nightly),
+        closedArrival: Boolean(entry.closedArrival),
+        closedDeparture: Boolean(entry.closedDeparture),
+      })),
+    );
+
+    if (!response.pages?.nextPageExists || !response.pages.nextPageLink) {
+      break;
+    }
+
+    response = await beds24RequestByLink<typeof response>(response.pages.nextPageLink);
+  }
+
+  if (ranges.length === 0) {
     return {
       roomId: property.beds24RoomId,
+      propertyId: property.beds24PropertyId,
       generatedAt: new Date().toISOString(),
       source: 'fallback',
+      from: todayKey,
+      to: horizonEnd,
       days: buildFallbackCalendar(property),
     };
+  }
+
+  const days: CalendarSnapshot['days'] = {};
+  for (let offset = 0; offset < 365; offset += 1) {
+    const key = addDays(todayKey, offset);
+    days[key] = {
+      available: false,
+      numAvail: 0,
+      minStay: property.pricing.minStay,
+      price: property.pricing.nightly,
+      closedArrival: true,
+      closedDeparture: false,
+    };
+  }
+
+  for (const range of ranges) {
+    if (!range.from || !range.to) continue;
+
+    const endKey = range.to;
+    for (
+      let cursor = range.from;
+      cursor <= endKey && cursor <= horizonEnd;
+      cursor = addDays(cursor, 1)
+    ) {
+      if (cursor < todayKey) continue;
+      days[cursor] = {
+        available: Number.isFinite(range.numAvail) ? Number(range.numAvail) > 0 : false,
+        numAvail: Number.isFinite(range.numAvail) ? Number(range.numAvail) : 0,
+        minStay: Number.isFinite(range.minStay) && Number(range.minStay) > 0 ? Number(range.minStay) : property.pricing.minStay,
+        price: Number.isFinite(range.price1) && Number(range.price1) >= 0 ? Number(range.price1) : property.pricing.nightly,
+        closedArrival: Boolean(range.closedArrival),
+        closedDeparture: Boolean(range.closedDeparture),
+      };
+    }
   }
 
   return {
     roomId: property.beds24RoomId,
+    propertyId: property.beds24PropertyId,
     generatedAt: new Date().toISOString(),
     source: 'beds24',
+    from: todayKey,
+    to: horizonEnd,
     days,
+    raw: {
+      ranges,
+    },
   };
 }
 

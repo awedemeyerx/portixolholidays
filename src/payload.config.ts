@@ -5,6 +5,7 @@ import { vercelBlobStorage } from '@payloadcms/storage-vercel-blob';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Beds24PropertyContent } from './collections/Beds24PropertyContent';
+import { Beds24InventorySnapshots } from './collections/Beds24InventorySnapshots';
 import { FAQEntries } from './collections/FAQEntries';
 import { LegalPages } from './collections/LegalPages';
 import { Media } from './collections/Media';
@@ -23,7 +24,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Media, Properties, Beds24PropertyContent, Pages, FAQEntries, LegalPages],
+  collections: [Users, Media, Properties, Beds24PropertyContent, Beds24InventorySnapshots, Pages, FAQEntries, LegalPages],
   globals: [SiteSettings],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || 'portixol-holidays-secret',

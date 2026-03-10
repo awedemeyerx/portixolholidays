@@ -212,15 +212,23 @@ export type BookingSessionRecord = {
 
 export type CalendarDay = {
   available: boolean;
+  numAvail: number;
   minStay: number;
   price?: number;
+  closedArrival: boolean;
+  closedDeparture: boolean;
 };
 
 export type CalendarSnapshot = {
   roomId: number;
+  propertyId?: number;
   generatedAt: string;
-  source: 'beds24' | 'fallback';
+  lastSyncedAt?: string;
+  from?: string;
+  to?: string;
+  source: 'beds24' | 'fallback' | 'database';
   days: Record<string, CalendarDay>;
+  raw?: Record<string, unknown>;
 };
 
 export type Beds24Offer = {

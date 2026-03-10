@@ -39,8 +39,8 @@ export async function createCheckoutForBooking({
     throw new Error('Stripe is not configured.');
   }
 
-  const liveQuote = await getPropertyQuoteBySlug(slug, query, { forceLive: true });
-  if (!liveQuote || !liveQuote.available) {
+  const snapshotQuote = await getPropertyQuoteBySlug(slug, query);
+  if (!snapshotQuote || !snapshotQuote.available) {
     throw new Error('This property is no longer available for the selected dates.');
   }
   const property = await getPropertyBySlug(slug, locale);
@@ -52,13 +52,13 @@ export async function createCheckoutForBooking({
   const session: BookingSessionRecord = {
     id,
     locale,
-    propertyId: liveQuote.propertyId,
-    propertySlug: liveQuote.slug,
+    propertyId: snapshotQuote.propertyId,
+    propertySlug: snapshotQuote.slug,
     beds24PropertyId: property.beds24PropertyId,
     beds24RoomId: property.beds24RoomId,
     query,
     guest,
-    quote: liveQuote,
+    quote: snapshotQuote,
     status: 'awaiting_payment',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -87,24 +87,24 @@ export async function createCheckoutForBooking({
     customer_email: guest.email,
     metadata: {
       bookingSessionId: id,
-      propertySlug: liveQuote.slug,
+      propertySlug: snapshotQuote.slug,
       locale,
     },
     line_items: [
       {
         quantity: 1,
         price_data: {
-          currency: liveQuote.quote.currency.toLowerCase(),
-          unit_amount: liveQuote.quote.depositAmount * 100,
+          currency: snapshotQuote.quote.currency.toLowerCase(),
+          unit_amount: snapshotQuote.quote.depositAmount * 100,
           product_data: {
-            name: `${liveQuote.title} deposit`,
+            name: `${snapshotQuote.title} deposit`,
             description: `${query.checkIn} -> ${query.checkOut} · ${splitName(guest)}`,
           },
         },
       },
     ],
-    success_url: `${baseUrl()}/${locale}/properties/${liveQuote.slug}?${successQuery.toString()}`,
-    cancel_url: `${baseUrl()}/${locale}/properties/${liveQuote.slug}?${cancelQuery.toString()}`,
+    success_url: `${baseUrl()}/${locale}/properties/${snapshotQuote.slug}?${successQuery.toString()}`,
+    cancel_url: `${baseUrl()}/${locale}/properties/${snapshotQuote.slug}?${cancelQuery.toString()}`,
   });
 
   await updateBookingSession(id, (current) => ({
