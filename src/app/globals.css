@@ -134,11 +134,16 @@ select {
 .stay-day {
   position: relative;
   aspect-ratio: 1 / 1;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.74);
+  background: rgba(255, 255, 255, 0.78);
   color: var(--ink);
-  transition: transform 160ms ease, background 160ms ease, color 160ms ease, opacity 160ms ease, box-shadow 160ms ease;
+  transition:
+    transform 140ms ease,
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    opacity 140ms ease;
 }
 
 .stay-day:hover:not(:disabled) {
@@ -147,23 +152,23 @@ select {
 }
 
 .stay-day-available {
-  background: linear-gradient(180deg, rgba(214, 239, 220, 0.98), rgba(234, 247, 237, 0.98));
-  box-shadow: inset 0 0 0 1px rgba(86, 150, 106, 0.18);
+  background: rgba(219, 241, 225, 0.96);
+  border-color: rgba(108, 170, 126, 0.22);
   color: rgba(36, 94, 54, 0.96);
 }
 
 .stay-day-available:hover:not(:disabled) {
-  background: linear-gradient(180deg, rgba(197, 231, 205, 0.99), rgba(223, 242, 228, 0.99));
+  background: rgba(207, 234, 214, 0.98);
 }
 
 .stay-day-unavailable {
-  background: linear-gradient(180deg, rgba(246, 224, 229, 0.98), rgba(242, 232, 236, 0.99));
-  box-shadow: inset 0 0 0 1px rgba(178, 120, 133, 0.16);
+  background: rgba(244, 226, 231, 0.97);
+  border-color: rgba(188, 128, 141, 0.18);
   color: rgba(136, 88, 100, 0.95);
 }
 
 .stay-day-unavailable:hover:not(:disabled) {
-  background: linear-gradient(180deg, rgba(240, 212, 219, 0.99), rgba(238, 225, 230, 0.99));
+  background: rgba(239, 216, 222, 0.99);
 }
 
 .stay-day-available::after,
@@ -194,7 +199,7 @@ select {
 }
 
 .stay-day-today {
-  box-shadow: inset 0 0 0 1px rgba(62, 146, 168, 0.36);
+  border-color: rgba(62, 146, 168, 0.36);
 }
 
 .stay-day-range {

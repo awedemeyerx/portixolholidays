@@ -131,6 +131,14 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
 
   const weekdays = useMemo(() => weekdayLabels(locale), [locale]);
   const months = useMemo(() => [visibleMonth, addMonths(visibleMonth, 1)], [visibleMonth]);
+  const monthViews = useMemo(
+    () =>
+      months.map((month) => ({
+        label: monthLabel(locale, month),
+        cells: buildMonthGrid(month, effectiveMinDate, calendar),
+      })),
+    [calendar, effectiveMinDate, locale, months],
+  );
   const invalidRange = Boolean(checkIn && checkOut && diffNights(checkIn, checkOut) <= 0);
   const previewEnd =
     activeField === 'checkOut' && hoveredDate && checkIn && compareDateKeys(hoveredDate, checkIn) > 0
@@ -226,9 +234,7 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
         </div>
 
         <div className="grid gap-6 p-4 md:grid-cols-2">
-          {months.map((month) => {
-            const monthCells = buildMonthGrid(month, effectiveMinDate, calendar);
-            const label = monthLabel(locale, month);
+          {monthViews.map(({ label, cells: monthCells }) => {
             return (
               <div key={label} className="space-y-3">
                 <div className="flex items-center justify-between">
