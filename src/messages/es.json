@@ -81,6 +81,17 @@
     "nextImage": "Siguiente imagen",
     "imageCount": "imágenes"
   },
+  "LocationsPage": {
+    "eyebrow": "Locations",
+    "title": "Nuestras zonas en Mallorca",
+    "intro": "Descubre los barrios y enclaves costeros donde se encuentran nuestras casas vacacionales.",
+    "homesLabel": "casas",
+    "detailEyebrow": "Location",
+    "homesTitle": "Alojamientos en esta zona",
+    "directionsTitle": "Cómo llegar",
+    "browseAll": "Todas las locations",
+    "viewProperty": "Ver alojamiento"
+  },
   "Footer": {
     "imprint": "Aviso legal",
     "privacy": "Privacidad",

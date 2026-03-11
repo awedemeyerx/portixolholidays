@@ -353,3 +353,24 @@ export async function getFeaturedLocations(locale: Locale) {
       propertyCount: propertyCountByLocation.get(location.id) ?? location.beds24PropertyIds.length,
     }));
 }
+
+export async function getLocationBySlug(slug: string, locale: Locale) {
+  const [locations, properties] = await Promise.all([getLocations(), getProperties()]);
+  const location = locations.find((entry) => entry.slugs[locale] === slug) ?? null;
+  if (!location) return null;
+
+  const locationProperties = properties
+    .filter((property) => {
+      if (property.locationId === location.id) return true;
+      return location.beds24PropertyIds.includes(property.beds24PropertyId);
+    })
+    .sort((left, right) => left.priority - right.priority);
+
+  const heroImage = location.heroImage || locationProperties.find((property) => property.heroImage)?.heroImage || '';
+
+  return {
+    location,
+    heroImage,
+    properties: locationProperties,
+  };
+}

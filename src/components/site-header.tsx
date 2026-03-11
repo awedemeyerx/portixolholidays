@@ -20,15 +20,15 @@ export function SiteHeader({ locale, brandName, labels }: Props) {
           {brandName}
         </Link>
         <nav className="hidden items-center gap-6 text-sm text-ink/70 md:flex">
-          <a href="#locations" className="hover:text-ink">
+          <Link href={`/${locale}/locations`} className="hover:text-ink">
             {labels.locations}
-          </a>
-          <a href="#faq" className="hover:text-ink">
+          </Link>
+          <Link href={`/${locale}/#faq`} className="hover:text-ink">
             {labels.faq}
-          </a>
-          <a href="#contact" className="hover:text-ink">
+          </Link>
+          <Link href={`/${locale}/#contact`} className="hover:text-ink">
             {labels.contact}
-          </a>
+          </Link>
         </nav>
         <LocaleSwitcher currentLocale={locale} />
       </div>

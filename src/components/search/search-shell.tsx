@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState, useTransition } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { diffNights } from '@/lib/holidays/dates';
+import { LocationCard } from '@/components/location/location-card';
 import { PropertyCard } from './property-card';
 import { StaySearchForm } from './stay-search-form';
 import type { AlternativeWindow, CalendarSnapshot, Locale, PropertySummary, SearchResponse } from '@/lib/holidays/types';
@@ -182,22 +183,6 @@ export function SearchShell({
     });
   }
 
-  function onLocationSpotlightSelect(locationSlug: string) {
-    const nextLocations =
-      currentQuery.locations.length === 1 && currentQuery.locations[0] === locationSlug
-        ? []
-        : [locationSlug];
-    const params = buildSearchQueryString({
-      checkIn: currentQuery.checkIn,
-      checkOut: currentQuery.checkOut,
-      guests: currentQuery.guests,
-      locations: nextLocations,
-    });
-    startTransition(() => {
-      router.replace(params ? `${pathname}?${params}` : pathname, { scroll: false });
-    });
-  }
-
   const results = response?.results ?? [];
   const showFeatured = !response && !hasCompleteQuery;
   const showLocations = showFeatured && featuredLocations.length > 0;
@@ -330,9 +315,9 @@ export function SearchShell({
               {featuredLocations.map((location) => (
                 <LocationCard
                   key={location.id}
+                  locale={locale}
                   location={location}
-                  selected={currentQuery.locations.includes(location.slug)}
-                  onSelect={onLocationSpotlightSelect}
+                  homesLabel={t('homesInLocation')}
                 />
               ))}
             </div>
@@ -384,52 +369,5 @@ function LinkCard({ locale, property }: { locale: Locale; property: FeaturedProp
         </p>
       </div>
     </Link>
-  );
-}
-
-function LocationCard({
-  location,
-  selected,
-  onSelect,
-}: {
-  location: FeaturedLocation;
-  selected: boolean;
-  onSelect: (slug: string) => void;
-}) {
-  const hasHeroImage = Boolean(location.heroImage);
-  const hasSummary = Boolean(location.summary.trim());
-  const t = useTranslations('Search');
-
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(location.slug)}
-      className={`glass-card block overflow-hidden rounded-[2rem] text-left transition hover:-translate-y-1 ${
-        selected ? 'ring-2 ring-sea/40' : ''
-      }`}
-    >
-      <div className="relative h-64 overflow-hidden">
-        {hasHeroImage ? (
-          <Image
-            src={location.heroImage}
-            alt={location.title}
-            fill
-            sizes="(max-width: 767px) 100vw, 50vw"
-            className="object-cover"
-          />
-        ) : (
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(10,116,140,0.18),transparent_58%),linear-gradient(135deg,rgba(244,227,211,0.9),rgba(255,255,255,0.98))]"
-          />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-ink/65" />
-      </div>
-      <div className="space-y-3 p-5">
-        <p className="label-caps text-[11px] text-sea">{location.propertyCount} {t('homesInLocation')}</p>
-        <h3 className="font-serif text-2xl">{location.title}</h3>
-        {hasSummary ? <p className="text-sm leading-6 text-ink/70">{location.summary}</p> : null}
-      </div>
-    </button>
   );
 }

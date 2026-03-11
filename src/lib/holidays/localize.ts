@@ -1,4 +1,4 @@
-import type { Highlight, LegalPageRecord, Localized, Locale, PropertyRecord, SiteSettingsRecord } from './types';
+import type { Highlight, LegalPageRecord, Localized, Locale, LocationRecord, PropertyRecord, SiteSettingsRecord } from './types';
 
 export function pickLocalized<T>(value: Localized<T>, locale: Locale): T {
   return value[locale];
@@ -47,6 +47,16 @@ export function localizeProperty(property: PropertyRecord, locale: Locale) {
     cancellationSummary: property.cancellationSummary[locale],
     seoTitle: property.seoTitle[locale],
     seoDescription: property.seoDescription[locale],
+  };
+}
+
+export function localizeLocation(location: LocationRecord, locale: Locale) {
+  return {
+    slug: location.slugs[locale],
+    title: location.title[locale],
+    summary: location.summary[locale],
+    description: location.description[locale],
+    directions: location.directions[locale],
   };
 }
 

@@ -81,6 +81,17 @@
     "nextImage": "Nächstes Bild",
     "imageCount": "Bilder"
   },
+  "LocationsPage": {
+    "eyebrow": "Locations",
+    "title": "Unsere Lagen auf Mallorca",
+    "intro": "Entdecke die Viertel und Küstenorte, in denen unsere Ferienhäuser liegen.",
+    "homesLabel": "Häuser",
+    "detailEyebrow": "Location",
+    "homesTitle": "Objekte an diesem Ort",
+    "directionsTitle": "Anreise",
+    "browseAll": "Alle Locations",
+    "viewProperty": "Objekt ansehen"
+  },
   "Footer": {
     "imprint": "Impressum",
     "privacy": "Datenschutz",

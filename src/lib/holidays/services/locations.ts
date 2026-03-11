@@ -1,5 +1,6 @@
 import { getPayloadClient } from '@/lib/payload';
 import { clearRemembered, remember } from '../cache/memory';
+import { locationContentOverrides } from '../data/location-content';
 import { defaultLocationGroups } from '../data/locations';
 import type { Beds24ContentRecord, Localized, LocationRecord, PropertyRecord } from '../types';
 import { getBeds24ContentRecords, getLiveBeds24ContentRecords } from './beds24-content';
@@ -25,6 +26,28 @@ function summarize(text: string) {
   if (!normalized) return '';
   if (normalized.length <= 200) return normalized;
   return `${normalized.slice(0, 197).trimEnd()}...`;
+}
+
+function mergeLocalized(base: Localized, override?: Localized) {
+  if (!override) return base;
+  return {
+    de: override.de || base.de,
+    en: override.en || base.en,
+    es: override.es || base.es,
+  };
+}
+
+function applyLocationOverrides(location: LocationRecord): LocationRecord {
+  const slug = location.slugs.en || location.slugs.de || location.slugs.es;
+  const override = locationContentOverrides[slug];
+  if (!override) return location;
+
+  return {
+    ...location,
+    summary: mergeLocalized(location.summary, override.summary),
+    description: mergeLocalized(location.description, override.description),
+    directions: mergeLocalized(location.directions, override.directions),
+  };
 }
 
 function mapLocationDoc(doc: RawDoc): LocationRecord {
@@ -85,7 +108,7 @@ export async function getLocations(): Promise<LocationRecord[]> {
         sort: 'priority',
       });
 
-      return result.docs.map((doc) => mapLocationDoc(doc as unknown as RawDoc));
+      return result.docs.map((doc) => applyLocationOverrides(mapLocationDoc(doc as unknown as RawDoc)));
     } catch {
       return [];
     }
@@ -155,6 +178,10 @@ export async function syncBeds24Locations() {
       en: summarize(description.en),
       es: summarize(description.es),
     };
+    const override = locationContentOverrides[group.slug];
+    const mergedSummary = mergeLocalized(summary, override?.summary);
+    const mergedDescription = mergeLocalized(description, override?.description);
+    const mergedDirections = mergeLocalized(directions, override?.directions);
     const heroImage =
       records.find((record) => record.heroImage.trim())?.heroImage ??
       records.find((record) => record.gallery.length > 0)?.gallery[0] ??
@@ -174,19 +201,19 @@ export async function syncBeds24Locations() {
         titleES: group.title.es,
       },
       summary: {
-        summaryDE: summary.de,
-        summaryEN: summary.en,
-        summaryES: summary.es,
+        summaryDE: mergedSummary.de,
+        summaryEN: mergedSummary.en,
+        summaryES: mergedSummary.es,
       },
       description: {
-        descriptionDE: description.de,
-        descriptionEN: description.en,
-        descriptionES: description.es,
+        descriptionDE: mergedDescription.de,
+        descriptionEN: mergedDescription.en,
+        descriptionES: mergedDescription.es,
       },
       directions: {
-        directionsDE: directions.de,
-        directionsEN: directions.en,
-        directionsES: directions.es,
+        directionsDE: mergedDirections.de,
+        directionsEN: mergedDirections.en,
+        directionsES: mergedDirections.es,
       },
       heroImageUrl: heroImage,
       beds24PropertyIds: group.beds24PropertyIds.map((value) => ({ value })),

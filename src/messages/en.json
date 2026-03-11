@@ -81,6 +81,17 @@
     "nextImage": "Next image",
     "imageCount": "images"
   },
+  "LocationsPage": {
+    "eyebrow": "Locations",
+    "title": "Our Mallorca locations",
+    "intro": "Discover the neighbourhoods and coastal settings where our holiday homes are located.",
+    "homesLabel": "homes",
+    "detailEyebrow": "Location",
+    "homesTitle": "Homes in this location",
+    "directionsTitle": "Getting there",
+    "browseAll": "All locations",
+    "viewProperty": "View property"
+  },
   "Footer": {
     "imprint": "Imprint",
     "privacy": "Privacy",
