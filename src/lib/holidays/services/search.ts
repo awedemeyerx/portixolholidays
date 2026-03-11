@@ -30,6 +30,27 @@ export async function getCalendarSnapshot(property: PropertyRecord) {
   return getInventorySnapshot(property);
 }
 
+export async function getSearchCalendarSnapshots({
+  locations = [],
+  guests = 2,
+}: {
+  locations?: string[];
+  guests?: number;
+} = {}): Promise<CalendarSnapshot[]> {
+  const properties = (await getProperties()).filter((property) => {
+    return property.maxGuests >= guests && matchesLocationFilter(property, locations);
+  });
+
+  if (properties.length === 0) {
+    return [];
+  }
+
+  const snapshots = await getInventorySnapshots(properties);
+  return properties
+    .map((property) => snapshots.get(property.beds24RoomId))
+    .filter((snapshot): snapshot is CalendarSnapshot => Boolean(snapshot));
+}
+
 function toSummary(
   property: PropertyRecord,
   query: SearchQuery,

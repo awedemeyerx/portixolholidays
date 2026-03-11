@@ -172,15 +172,21 @@ function normalizeOfferDataEntry(raw: Record<string, unknown>): Beds24Offer | nu
   const totalPrice = Number(offer.price ?? offer.totalPrice ?? offer.total ?? 0);
   if (!Number.isFinite(totalPrice) || totalPrice <= 0) return null;
 
+  const cleaningFee = Number(offer.cleaningFee ?? offer.cleaning ?? offer.feeCleaning ?? raw.cleaningFee ?? 0);
+  const taxes = Number(offer.taxes ?? offer.tax ?? offer.taxTotal ?? raw.taxes ?? raw.tax ?? 0);
+  const pricePerNight = Number(offer.pricePerNight ?? offer.nightlyPrice ?? offer.avgPrice ?? offer.averagePrice ?? 0);
+  const minimumStay = Number(offer.minStay ?? offer.minimumStay ?? raw.minStay ?? 1);
+  const unitsAvailable = Number(offer.unitsAvailable ?? raw.unitsAvailable ?? 0);
+
   return {
     roomId,
-    available: Number(offer.unitsAvailable ?? 0) > 0,
+    available: unitsAvailable > 0,
     totalPrice,
-    pricePerNight: 0,
-    cleaningFee: 0,
-    taxes: 0,
-    minimumStay: 1,
-    currency: String(raw.currency ?? 'EUR'),
+    pricePerNight,
+    cleaningFee,
+    taxes,
+    minimumStay,
+    currency: String(offer.currency ?? raw.currency ?? 'EUR'),
   };
 }
 

@@ -21,6 +21,20 @@ function isFresh(expiresAt: string) {
 }
 
 function mapOfferDoc(doc: RawDoc): Beds24Offer {
+  if (doc.raw && typeof doc.raw === 'object') {
+    const raw = doc.raw as RawDoc;
+    return {
+      roomId: Number(raw.roomId ?? doc.beds24RoomId ?? 0),
+      available: typeof raw.available === 'boolean' ? raw.available : Boolean(doc.available),
+      pricePerNight: Number(raw.pricePerNight ?? 0),
+      cleaningFee: Number(raw.cleaningFee ?? 0),
+      taxes: Number(raw.taxes ?? 0),
+      totalPrice: Number(raw.totalPrice ?? doc.totalPrice ?? 0),
+      currency: String(raw.currency ?? doc.currency ?? 'EUR'),
+      minimumStay: Number(raw.minimumStay ?? 1),
+    };
+  }
+
   return {
     roomId: Number(doc.beds24RoomId ?? 0),
     available: Boolean(doc.available),
@@ -151,15 +165,19 @@ export async function getBeds24OfferMap(query: SearchQuery, properties: Property
 
 export function toPriceBreakdownFromOffer(property: PropertyRecord, query: SearchQuery, offer: Beds24Offer): PriceBreakdown {
   const nights = diffNights(query.checkIn, query.checkOut);
-  const cleaningFee = property.pricing.cleaningFee ?? 0;
+  const subtotal = Math.max(offer.totalPrice, 0);
+  const cleaningFee = offer.cleaningFee > 0 ? offer.cleaningFee : property.pricing.cleaningFee ?? 0;
   const taxes =
-    property.pricing.taxPercentage && property.pricing.taxPercentage > 0
-      ? Math.round((Math.max(offer.totalPrice - cleaningFee, 0) * property.pricing.taxPercentage) / (100 + property.pricing.taxPercentage))
-      : property.pricing.taxPersonNight && property.pricing.taxPersonNight > 0
-        ? Math.round(property.pricing.taxPersonNight * query.guests * nights)
-        : property.pricing.taxes ?? 0;
-  const subtotal = Math.max(offer.totalPrice - cleaningFee - taxes, 0);
-  const pricePerNight = nights > 0 ? Math.round(subtotal / nights) : subtotal;
+    offer.taxes > 0
+      ? offer.taxes
+      : property.pricing.taxPercentage && property.pricing.taxPercentage > 0
+        ? Math.round((subtotal * property.pricing.taxPercentage) / 100)
+        : property.pricing.taxPersonNight && property.pricing.taxPersonNight > 0
+          ? Math.round(property.pricing.taxPersonNight * query.guests * nights)
+          : property.pricing.taxes ?? 0;
+  const totalPrice = subtotal + cleaningFee + taxes;
+  const pricePerNight =
+    offer.pricePerNight > 0 ? Math.round(offer.pricePerNight) : nights > 0 ? Math.round(subtotal / nights) : subtotal;
 
   return {
     currency: offer.currency || property.pricing.currency,
@@ -168,7 +186,7 @@ export function toPriceBreakdownFromOffer(property: PropertyRecord, query: Searc
     subtotal,
     cleaningFee,
     taxes,
-    totalPrice: offer.totalPrice,
-    depositAmount: Math.round(offer.totalPrice * property.pricing.depositRate),
+    totalPrice,
+    depositAmount: Math.round(totalPrice * property.pricing.depositRate),
   };
 }

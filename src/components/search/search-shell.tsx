@@ -8,7 +8,7 @@ import { useTranslations } from 'next-intl';
 import { diffNights } from '@/lib/holidays/dates';
 import { PropertyCard } from './property-card';
 import { StaySearchForm } from './stay-search-form';
-import type { AlternativeWindow, Locale, PropertySummary, SearchResponse } from '@/lib/holidays/types';
+import type { AlternativeWindow, CalendarSnapshot, Locale, PropertySummary, SearchResponse } from '@/lib/holidays/types';
 
 type FeaturedProperty = {
   id: string;
@@ -43,6 +43,7 @@ type Props = {
   featuredProperties: FeaturedProperty[];
   featuredLocations: FeaturedLocation[];
   locationOptions: Array<{ value: string; label: string; propertyCount?: number }>;
+  searchCalendars: CalendarSnapshot[];
 };
 
 function buildSearchQueryString(input: {
@@ -63,7 +64,14 @@ function buildSearchQueryString(input: {
   return params.toString();
 }
 
-export function SearchShell({ locale, hero, featuredProperties, featuredLocations, locationOptions }: Props) {
+export function SearchShell({
+  locale,
+  hero,
+  featuredProperties,
+  featuredLocations,
+  locationOptions,
+  searchCalendars,
+}: Props) {
   const t = useTranslations('Search');
   const router = useRouter();
   const pathname = usePathname();
@@ -216,6 +224,7 @@ export function SearchShell({ locale, hero, featuredProperties, featuredLocation
               loadingLabel={t('loading')}
               helperText={hero.hint}
               isPending={isPending}
+              calendars={searchCalendars}
               locationOptions={locationOptions}
               onSubmit={onSubmit}
               onClear={onClear}

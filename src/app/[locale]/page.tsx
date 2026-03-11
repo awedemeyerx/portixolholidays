@@ -2,19 +2,28 @@ import { SearchShell } from '@/components/search/search-shell';
 import { localizeSiteSettings, pickLocalized } from '@/lib/holidays/localize';
 import { safeLocale } from '@/lib/holidays/locale';
 import { getFaqs, getFeaturedLocations, getFeaturedProperties, getLocationOptions, getSiteSettings } from '@/lib/holidays/services/cms';
+import { getSearchCalendarSnapshots } from '@/lib/holidays/services/search';
 
 export default async function LocaleHomePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { locale: rawLocale } = await params;
+  const [{ locale: rawLocale }, rawSearchParams] = await Promise.all([params, searchParams]);
   const locale = safeLocale(rawLocale);
   const siteSettings = localizeSiteSettings(await getSiteSettings(), locale);
-  const [featuredProperties, featuredLocations, locationOptions] = await Promise.all([
+  const selectedLocations = [rawSearchParams.location]
+    .flat()
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+  const selectedGuests = typeof rawSearchParams.guests === 'string' ? Number(rawSearchParams.guests) : 2;
+  const guests = Number.isFinite(selectedGuests) && selectedGuests > 0 ? selectedGuests : 2;
+  const [featuredProperties, featuredLocations, locationOptions, searchCalendars] = await Promise.all([
     getFeaturedProperties(locale),
     getFeaturedLocations(locale),
     getLocationOptions(locale),
+    getSearchCalendarSnapshots({ locations: selectedLocations, guests }),
   ]);
   const faqs = await getFaqs();
 
@@ -34,6 +43,7 @@ export default async function LocaleHomePage({
         featuredProperties={featuredProperties}
         featuredLocations={featuredLocations}
         locationOptions={locationOptions}
+        searchCalendars={searchCalendars}
       />
 
       <section id="faq" className="px-4 pb-8 pt-8 md:px-8">

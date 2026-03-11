@@ -4,6 +4,10 @@
     {
       "path": "/api/internal/beds24/sync-inventory",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/internal/beds24/sync-content",
+      "schedule": "17 3 * * *"
     }
   ]
 }

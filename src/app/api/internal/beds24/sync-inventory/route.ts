@@ -17,15 +17,18 @@ function isAuthorized(request: Request) {
   return false;
 }
 
-export async function POST(request: Request) {
+async function runSync(request: Request) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
   }
 
-  const body = (await request.json().catch(() => ({}))) as {
-    roomIds?: number[] | string[];
-    propertyIds?: number[] | string[];
-  };
+  const body =
+    request.method === 'POST'
+      ? ((await request.json().catch(() => ({}))) as {
+          roomIds?: number[] | string[];
+          propertyIds?: number[] | string[];
+        })
+      : {};
 
   try {
     const result = await syncBeds24InventorySnapshots({
@@ -46,4 +49,12 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
+}
+
+export async function GET(request: Request) {
+  return runSync(request);
+}
+
+export async function POST(request: Request) {
+  return runSync(request);
 }

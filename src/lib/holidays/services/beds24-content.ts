@@ -107,6 +107,75 @@ function verifiedGalleryUrls(record: Beds24ContentRecord) {
   return record.gallery.filter((url) => isVerifiedPropertyImage(url));
 }
 
+function pickMediaDocUrl(doc: RawDoc) {
+  return maybeString(doc.url, doc.thumbnailURL);
+}
+
+async function getMediaGalleryMap(propertyIds: number[]) {
+  const uniquePropertyIds = Array.from(new Set(propertyIds.filter((value) => Number.isFinite(value) && value > 0)));
+  if (uniquePropertyIds.length === 0) {
+    return new Map<string, string[]>();
+  }
+
+  const payload = await getPayloadClient();
+  if (!payload) {
+    return new Map<string, string[]>();
+  }
+
+  try {
+    const result = await payload.find({
+      collection: 'media',
+      depth: 0,
+      limit: Math.max(uniquePropertyIds.length * 50, 100),
+      where: {
+        or: uniquePropertyIds.map((propertyId) => ({
+          prefix: {
+            equals: String(propertyId),
+          },
+        })),
+      },
+    });
+
+    const docs = (result.docs as unknown as RawDoc[]).slice().sort((left, right) => {
+      const leftSortKey = maybeString(left.filename, left.sourceKey, left.createdAt, left.updatedAt, left.id);
+      const rightSortKey = maybeString(right.filename, right.sourceKey, right.createdAt, right.updatedAt, right.id);
+      return leftSortKey.localeCompare(rightSortKey);
+    });
+
+    const grouped = new Map<string, string[]>();
+    for (const doc of docs) {
+      const prefix = maybeString(doc.prefix);
+      const url = pickMediaDocUrl(doc);
+      if (!prefix || !isVerifiedPropertyImage(url)) continue;
+      const existing = grouped.get(prefix) ?? [];
+      if (!existing.includes(url)) {
+        existing.push(url);
+      }
+      grouped.set(prefix, existing);
+    }
+
+    return grouped;
+  } catch {
+    return new Map<string, string[]>();
+  }
+}
+
+function withRecoveredMedia(record: Beds24ContentRecord, fallbackGallery: string[]) {
+  const verifiedGallery = verifiedGalleryUrls(record);
+  const gallery = verifiedGallery.length > 0
+    ? verifiedGallery
+    : fallbackGallery.filter((url) => isVerifiedPropertyImage(url));
+  const heroImage = isVerifiedPropertyImage(record.heroImage)
+    ? record.heroImage
+    : gallery[0] ?? '';
+
+  return {
+    ...record,
+    heroImage,
+    gallery,
+  };
+}
+
 function isRenderableBeds24Content(record: Beds24ContentRecord) {
   if (record.beds24PropertyId <= 0 || record.beds24RoomId <= 0) {
     return false;
@@ -614,8 +683,11 @@ export async function getBeds24ContentRecords() {
       sort: '-lastSyncedAt',
     });
 
-    return result.docs
-      .map((doc) => mapBeds24ContentDoc(doc as unknown as RawDoc))
+    const mapped = result.docs.map((doc) => mapBeds24ContentDoc(doc as unknown as RawDoc));
+    const mediaMap = await getMediaGalleryMap(mapped.map((record) => record.beds24PropertyId));
+
+    return mapped
+      .map((record) => withRecoveredMedia(record, mediaMap.get(String(record.beds24PropertyId)) ?? []))
       .filter((record) => isRenderableBeds24Content(record));
   } catch {
     return [];
@@ -647,11 +719,15 @@ export async function getLiveBeds24ContentRecords() {
       id: `${record.beds24PropertyId}:${record.beds24RoomId}`,
       ...record,
       lastSyncedAt: new Date().toISOString(),
-    }))
-    .filter((record) => isRenderableBeds24Content(record as Beds24ContentRecord)) as Beds24ContentRecord[];
+    })) as Beds24ContentRecord[];
 
-  await writeCache('beds24-content', 'catalog_live', normalized, CATALOG_TTL_MS);
-  return normalized;
+  const mediaMap = await getMediaGalleryMap(normalized.map((record) => record.beds24PropertyId));
+  const hydrated = normalized
+    .map((record) => withRecoveredMedia(record, mediaMap.get(String(record.beds24PropertyId)) ?? []))
+    .filter((record) => isRenderableBeds24Content(record));
+
+  await writeCache('beds24-content', 'catalog_live', hydrated, CATALOG_TTL_MS);
+  return hydrated;
 }
 
 export async function resolveBeds24ContentForProperties(properties: PropertyRecord[]) {
@@ -705,25 +781,38 @@ export async function syncBeds24PropertyContent() {
   );
 
   const seenKeys = new Set<string>();
+  const normalizedRecords = extractCatalogRecords(catalog)
+    .map((record) => normalizeContentRecord(record))
+    .filter((record): record is Omit<Beds24ContentRecord, 'id' | 'lastSyncedAt'> => Boolean(record))
+    .map((record) => ({
+      id: `${record.beds24PropertyId}:${record.beds24RoomId}`,
+      ...record,
+      lastSyncedAt: new Date().toISOString(),
+    }))
+    .filter((record) => {
+      if (!isRenderableBeds24Content(record as Beds24ContentRecord)) return false;
+      const key = `${record.beds24PropertyId}:${record.beds24RoomId}`;
+      if (seenKeys.has(key)) return false;
+      seenKeys.add(key);
+      return true;
+    }) as Beds24ContentRecord[];
+  const mediaMap = await getMediaGalleryMap(normalizedRecords.map((record) => record.beds24PropertyId));
   const created: string[] = [];
   const updated: string[] = [];
   const skipped: string[] = [];
 
-  for (const record of extractCatalogRecords(catalog)) {
-    const normalized = normalizeContentRecord(record);
-    if (!normalized) continue;
-
-    const key = `${normalized.beds24PropertyId}:${normalized.beds24RoomId}`;
-    const contentRecord = {
-      id: key,
-      ...normalized,
-      lastSyncedAt: new Date().toISOString(),
-    } as Beds24ContentRecord;
-
-    if (!isRenderableBeds24Content(contentRecord)) continue;
-
-    if (seenKeys.has(key)) continue;
-    seenKeys.add(key);
+  for (const rawRecord of normalizedRecords) {
+    const key = `${rawRecord.beds24PropertyId}:${rawRecord.beds24RoomId}`;
+    const existingDoc = existingByKey.get(key);
+    const existingRecord = existingDoc ? mapBeds24ContentDoc(existingDoc) : null;
+    const contentRecord = withRecoveredMedia(
+      {
+        ...rawRecord,
+        heroImage: rawRecord.heroImage || existingRecord?.heroImage || '',
+        gallery: rawRecord.gallery.length > 0 ? rawRecord.gallery : existingRecord?.gallery ?? [],
+      },
+      mediaMap.get(String(rawRecord.beds24PropertyId)) ?? [],
+    );
 
     const payloadData = {
       internalName: contentRecord.title.de || contentRecord.title.en || contentRecord.title.es || key,
@@ -781,7 +870,6 @@ export async function syncBeds24PropertyContent() {
       raw: contentRecord.raw,
     };
 
-    const existingDoc = existingByKey.get(key);
     if (existingDoc) {
       await payload.update({
         collection: 'beds24-property-content',

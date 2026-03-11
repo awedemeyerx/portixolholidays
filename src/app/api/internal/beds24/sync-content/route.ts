@@ -3,12 +3,22 @@ import { syncBeds24PropertyContent } from '@/lib/holidays/services/beds24-conten
 import { syncBeds24Locations } from '@/lib/holidays/services/locations';
 
 function isAuthorized(request: Request) {
-  const configuredSecret = process.env.BEDS24_SYNC_SECRET?.trim();
-  if (!configuredSecret) return true;
-  return request.headers.get('x-sync-secret') === configuredSecret;
+  const secrets = [process.env.BEDS24_SYNC_SECRET?.trim(), process.env.CRON_SECRET?.trim()].filter(Boolean) as string[];
+  if (secrets.length === 0) return true;
+
+  const syncSecret = request.headers.get('x-sync-secret')?.trim();
+  if (syncSecret && secrets.includes(syncSecret)) return true;
+
+  const authorization = request.headers.get('authorization')?.trim();
+  if (authorization?.startsWith('Bearer ')) {
+    const token = authorization.slice('Bearer '.length).trim();
+    if (token && secrets.includes(token)) return true;
+  }
+
+  return false;
 }
 
-export async function POST(request: Request) {
+async function runSync(request: Request) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
   }
@@ -27,4 +37,12 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
+}
+
+export async function GET(request: Request) {
+  return runSync(request);
+}
+
+export async function POST(request: Request) {
+  return runSync(request);
 }

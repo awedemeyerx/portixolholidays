@@ -11,6 +11,7 @@ type Props = {
   onChange: (next: { checkIn: string; checkOut: string }) => void;
   minDate?: string;
   calendar?: CalendarSnapshot | null;
+  calendars?: CalendarSnapshot[] | null;
   labels: {
     arrival: string;
     departure: string;
@@ -63,8 +64,24 @@ function startOfWeek(date: Date) {
   return next;
 }
 
-function resolveAvailability(dateKey: string, minDate: string, calendar?: CalendarSnapshot | null) {
-  const day = calendar?.days[dateKey];
+function getDayEntry(sources: CalendarSnapshot[], dateKey: string) {
+  return sources
+    .map((snapshot) => snapshot.days[dateKey])
+    .filter((day): day is NonNullable<CalendarSnapshot['days'][string]> => Boolean(day));
+}
+
+function resolveAvailability(
+  dateKey: string,
+  minDate: string,
+  sources: CalendarSnapshot[],
+  fallbackCalendar?: CalendarSnapshot | null,
+) {
+  if (sources.length > 0) {
+    const days = getDayEntry(sources, dateKey);
+    return days.some((day) => day.available) ? 'available' : 'unavailable';
+  }
+
+  const day = fallbackCalendar?.days[dateKey];
   if (typeof day?.available === 'boolean') {
     return day.available ? 'available' : 'unavailable';
   }
@@ -72,14 +89,19 @@ function resolveAvailability(dateKey: string, minDate: string, calendar?: Calend
   return compareDateKeys(dateKey, minDate) < 0 ? 'unavailable' : 'available';
 }
 
-function buildMonthGrid(viewMonth: Date, minDate: string, calendar?: CalendarSnapshot | null) {
+function buildMonthGrid(
+  viewMonth: Date,
+  minDate: string,
+  sources: CalendarSnapshot[],
+  fallbackCalendar?: CalendarSnapshot | null,
+) {
   const today = toDateKey(new Date());
   const gridStart = startOfWeek(viewMonth);
   return Array.from({ length: 42 }, (_, index): CalendarCell => {
     const cellDate = new Date(gridStart);
     cellDate.setDate(gridStart.getDate() + index);
     const key = toDateKey(cellDate);
-    const availability = resolveAvailability(key, minDate, calendar);
+    const availability = resolveAvailability(key, minDate, sources, fallbackCalendar);
     return {
       key,
       dayLabel: String(cellDate.getDate()),
@@ -87,8 +109,8 @@ function buildMonthGrid(viewMonth: Date, minDate: string, calendar?: CalendarSna
       pastDisabled: compareDateKeys(key, minDate) < 0,
       isToday: key === today,
       availability,
-      previousAvailability: resolveAvailability(addDays(key, -1), minDate, calendar),
-      nextAvailability: resolveAvailability(addDays(key, 1), minDate, calendar),
+      previousAvailability: resolveAvailability(addDays(key, -1), minDate, sources, fallbackCalendar),
+      nextAvailability: resolveAvailability(addDays(key, 1), minDate, sources, fallbackCalendar),
     };
   });
 }
@@ -107,41 +129,78 @@ function monthLabel(locale: Locale, date: Date) {
   return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(date);
 }
 
+function snapshotAllowsArrival(snapshot: CalendarSnapshot, dateKey: string, minDate: string) {
+  if (compareDateKeys(dateKey, minDate) < 0) return false;
+  const day = snapshot.days[dateKey];
+  return Boolean(day?.available) && day?.closedArrival !== true;
+}
+
+function snapshotAllowsStay(snapshot: CalendarSnapshot, checkIn: string, dateKey: string, minDate: string) {
+  if (compareDateKeys(dateKey, minDate) < 0) return false;
+  if (compareDateKeys(dateKey, checkIn) <= 0) {
+    return snapshotAllowsArrival(snapshot, dateKey, minDate);
+  }
+
+  const arrivalDay = snapshot.days[checkIn];
+  const departureDay = snapshot.days[dateKey];
+  if (!arrivalDay || !departureDay) return false;
+  if (arrivalDay.closedArrival || departureDay.closedDeparture) return false;
+
+  const nights = diffNights(checkIn, dateKey);
+  if (nights <= 0 || nights < arrivalDay.minStay) return false;
+
+  return enumerateNights(checkIn, dateKey).every((night) => Boolean(snapshot.days[night]?.available));
+}
+
 function canSelectDate({
   activeField,
   checkIn,
   dateKey,
   minDate,
   calendar,
+  calendars,
 }: {
   activeField: ActiveField;
   checkIn: string;
   dateKey: string;
   minDate: string;
   calendar?: CalendarSnapshot | null;
+  calendars?: CalendarSnapshot[] | null;
 }) {
+  const sources = (calendars ?? []).filter(Boolean);
   const day = calendar?.days[dateKey];
   if (compareDateKeys(dateKey, minDate) < 0) return false;
 
+  if (sources.length > 0) {
+    if (!checkIn || activeField === 'checkIn') {
+      return sources.some((snapshot) => snapshotAllowsArrival(snapshot, dateKey, minDate));
+    }
+
+    return sources.some((snapshot) => snapshotAllowsStay(snapshot, checkIn, dateKey, minDate));
+  }
+
   if (!checkIn || activeField === 'checkIn') {
-    return resolveAvailability(dateKey, minDate, calendar) === 'available' && day?.closedArrival !== true;
+    return resolveAvailability(dateKey, minDate, [], calendar) === 'available' && day?.closedArrival !== true;
   }
 
   if (compareDateKeys(dateKey, checkIn) <= 0) {
-    return resolveAvailability(dateKey, minDate, calendar) === 'available' && day?.closedArrival !== true;
+    return resolveAvailability(dateKey, minDate, [], calendar) === 'available' && day?.closedArrival !== true;
   }
 
   if (day?.closedDeparture === true) {
     return false;
   }
 
-  return enumerateNights(checkIn, dateKey).every((night) => resolveAvailability(night, minDate, calendar) === 'available');
+  return enumerateNights(checkIn, dateKey).every((night) => resolveAvailability(night, minDate, [], calendar) === 'available');
 }
 
-export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, calendar, labels }: Props) {
+export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, calendar, calendars, labels }: Props) {
   const todayKey = useMemo(() => toDateKey(new Date()), []);
   const effectiveMinDate = minDate ?? todayKey;
-  const [activeField, setActiveField] = useState<ActiveField>(checkIn ? 'checkOut' : 'checkIn');
+  const calendarSources = useMemo(() => (calendars ?? []).filter(Boolean), [calendars]);
+  const [activeField, setActiveField] = useState<ActiveField>(() =>
+    checkIn && checkOut && diffNights(checkIn, checkOut) > 0 ? 'checkIn' : checkIn ? 'checkOut' : 'checkIn',
+  );
   const [hoveredDate, setHoveredDate] = useState('');
   const [visibleMonth, setVisibleMonth] = useState(() => monthStart(checkIn || effectiveMinDate));
 
@@ -160,14 +219,15 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
   }, [checkIn, checkOut]);
 
   useEffect(() => {
-    if (!checkIn) return;
-
     const targetMonth = monthStart(checkIn || effectiveMinDate);
-    const secondMonth = addMonths(visibleMonth, 1);
-    if (monthId(targetMonth) < monthId(visibleMonth) || monthId(targetMonth) > monthId(secondMonth)) {
-      setVisibleMonth(targetMonth);
-    }
-  }, [checkIn, effectiveMinDate, visibleMonth]);
+    setVisibleMonth((current) => {
+      const secondMonth = addMonths(current, 1);
+      if (monthId(targetMonth) < monthId(current) || monthId(targetMonth) > monthId(secondMonth)) {
+        return targetMonth;
+      }
+      return current;
+    });
+  }, [checkIn, effectiveMinDate]);
 
   const weekdays = useMemo(() => weekdayLabels(locale), [locale]);
   const months = useMemo(() => [visibleMonth, addMonths(visibleMonth, 1)], [visibleMonth]);
@@ -175,9 +235,9 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
     () =>
       months.map((month) => ({
         label: monthLabel(locale, month),
-        cells: buildMonthGrid(month, effectiveMinDate, calendar),
+        cells: buildMonthGrid(month, effectiveMinDate, calendarSources, calendar),
       })),
-    [calendar, effectiveMinDate, locale, months],
+    [calendar, calendarSources, effectiveMinDate, locale, months],
   );
   const invalidRange = Boolean(checkIn && checkOut && diffNights(checkIn, checkOut) <= 0);
   const previewEnd =
@@ -185,7 +245,7 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
     hoveredDate &&
     checkIn &&
     compareDateKeys(hoveredDate, checkIn) > 0 &&
-    canSelectDate({ activeField, checkIn, dateKey: hoveredDate, minDate: effectiveMinDate, calendar })
+    canSelectDate({ activeField, checkIn, dateKey: hoveredDate, minDate: effectiveMinDate, calendar, calendars: calendarSources })
       ? hoveredDate
       : checkOut;
   const previewInvalid = Boolean(checkIn && previewEnd && compareDateKeys(previewEnd, checkIn) <= 0);
@@ -193,7 +253,7 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
   const totalNights = hasValidRange ? diffNights(checkIn, checkOut) : 0;
 
   function selectDate(nextDate: string) {
-    if (!canSelectDate({ activeField, checkIn, dateKey: nextDate, minDate: effectiveMinDate, calendar })) {
+        if (!canSelectDate({ activeField, checkIn, dateKey: nextDate, minDate: effectiveMinDate, calendar, calendars: calendarSources })) {
       return;
     }
 
@@ -214,13 +274,6 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
     onChange({ checkIn, checkOut: nextDate });
     setActiveField('checkIn');
     setHoveredDate('');
-  }
-
-  function clearDates() {
-    onChange({ checkIn: '', checkOut: '' });
-    setActiveField('checkIn');
-    setHoveredDate('');
-    setVisibleMonth(monthStart(effectiveMinDate));
   }
 
   const earliestMonth = monthStart(effectiveMinDate);
@@ -287,13 +340,6 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
               <div key={label} className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="font-serif text-2xl capitalize">{label}</h3>
-                  <button
-                    type="button"
-                    onClick={clearDates}
-                    className="text-sm text-terracotta transition hover:text-ink"
-                  >
-                    {labels.resetDates}
-                  </button>
                 </div>
 
                 <div className="grid grid-cols-7 gap-2 text-center text-[11px] uppercase tracking-[0.18em] text-mist">
@@ -314,9 +360,18 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
                       dateKey: cell.key,
                       minDate: effectiveMinDate,
                       calendar,
+                      calendars: calendarSources,
                     });
+                    const cellAvailability =
+                      calendarSources.length > 1 && checkIn && activeField === 'checkOut'
+                        ? selectable && compareDateKeys(cell.key, checkIn) > 0
+                          ? 'available'
+                          : isStart
+                            ? 'available'
+                            : 'unavailable'
+                        : cell.availability;
                     const checkoutOnly =
-                      cell.availability === 'unavailable' &&
+                      cellAvailability === 'unavailable' &&
                       Boolean(checkIn) &&
                       activeField === 'checkOut' &&
                       compareDateKeys(cell.key, checkIn) > 0 &&
@@ -341,8 +396,8 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
                     const dayClass = [
                       'stay-day',
                       cell.inMonth ? 'stay-day-current' : 'stay-day-muted',
-                      cell.availability === 'available' ? 'stay-day-available' : '',
-                      cell.availability === 'unavailable' ? 'stay-day-unavailable' : '',
+                      cellAvailability === 'available' ? 'stay-day-available' : '',
+                      cellAvailability === 'unavailable' ? 'stay-day-unavailable' : '',
                       cell.pastDisabled ? 'stay-day-disabled' : '',
                       !cell.pastDisabled && !selectable ? 'stay-day-locked' : '',
                       cell.isToday ? 'stay-day-today' : '',

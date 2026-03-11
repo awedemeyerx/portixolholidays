@@ -17,6 +17,7 @@ type Props = {
   isPending?: boolean;
   submitClassName?: string;
   calendar?: CalendarSnapshot | null;
+  calendars?: CalendarSnapshot[] | null;
   locationOptions?: Array<{ value: string; label: string; propertyCount?: number }>;
   onSubmit: (query: { checkIn: string; checkOut: string; guests: number; locations: string[] }) => void;
   onClear?: () => void;
@@ -46,6 +47,7 @@ export function StaySearchForm({
   isPending,
   submitClassName,
   calendar,
+  calendars,
   locationOptions,
   onSubmit,
   onClear,
@@ -74,6 +76,7 @@ export function StaySearchForm({
 
   const invalidRange = Boolean(checkIn && checkOut && diffNights(checkIn, checkOut) <= 0);
   const incompleteRange = !checkIn || !checkOut;
+  const hasSelectedDates = Boolean(checkIn || checkOut);
 
   function handleClear() {
     setCheckIn('');
@@ -98,6 +101,7 @@ export function StaySearchForm({
           setCheckOut(nextCheckOut);
         }}
         calendar={calendar}
+        calendars={calendars}
         labels={labels}
       />
 
@@ -168,13 +172,15 @@ export function StaySearchForm({
           >
             {isPending ? loadingLabel : submitLabel}
           </button>
-          <button
-            type="button"
-            onClick={handleClear}
-            className="text-sm text-mist transition hover:text-ink"
-          >
-            {labels.resetDates}
-          </button>
+          {hasSelectedDates ? (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="text-sm text-mist transition hover:text-ink"
+            >
+              {labels.resetDates}
+            </button>
+          ) : null}
         </div>
       </div>
 
