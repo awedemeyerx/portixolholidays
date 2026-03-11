@@ -262,13 +262,8 @@ export function quoteFromInventorySnapshot(property: PropertyRecord, query: Sear
 
   const subtotal = nightlyPrices.reduce((sum, price) => sum + price, 0);
   const averageNightlyPrice = Math.round(subtotal / Math.max(nightlyPrices.length, 1));
-  const cleaningFee = property.pricing.cleaningFee;
-  const taxes =
-    property.pricing.taxPercentage && property.pricing.taxPercentage > 0
-      ? Math.round((subtotal * property.pricing.taxPercentage) / 100)
-      : property.pricing.taxPersonNight && property.pricing.taxPersonNight > 0
-        ? Math.round(property.pricing.taxPersonNight * query.guests * nights)
-        : property.pricing.taxes;
+  const cleaningFee = 0;
+  const taxes = 0;
   const totalPrice = subtotal + cleaningFee + taxes;
 
   const quote: PriceBreakdown = {
