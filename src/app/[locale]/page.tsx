@@ -1,8 +1,9 @@
 import { SearchShell } from '@/components/search/search-shell';
 import { localizeSiteSettings, pickLocalized } from '@/lib/holidays/localize';
 import { safeLocale } from '@/lib/holidays/locale';
+import { searchProperties, getSearchCalendarSnapshots } from '@/lib/holidays/services/search';
 import { getFaqs, getFeaturedLocations, getFeaturedProperties, getLocationOptions, getSiteSettings } from '@/lib/holidays/services/cms';
-import { getSearchCalendarSnapshots } from '@/lib/holidays/services/search';
+import { searchQuerySchema } from '@/lib/holidays/validation';
 
 export default async function LocaleHomePage({
   params,
@@ -19,12 +20,30 @@ export default async function LocaleHomePage({
     .filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
   const selectedGuests = typeof rawSearchParams.guests === 'string' ? Number(rawSearchParams.guests) : 2;
   const guests = Number.isFinite(selectedGuests) && selectedGuests > 0 ? selectedGuests : 2;
+  const parsedSearch = searchQuerySchema.safeParse({
+    locale,
+    checkIn: rawSearchParams.checkIn,
+    checkOut: rawSearchParams.checkOut,
+    guests: rawSearchParams.guests,
+    locations: selectedLocations,
+  });
+  const hasSearchQuery = parsedSearch.success;
   const [featuredProperties, featuredLocations, locationOptions, searchCalendars] = await Promise.all([
-    getFeaturedProperties(locale),
-    getFeaturedLocations(locale),
+    hasSearchQuery ? Promise.resolve([]) : getFeaturedProperties(locale),
+    hasSearchQuery ? Promise.resolve([]) : getFeaturedLocations(locale),
     getLocationOptions(locale),
     getSearchCalendarSnapshots({ locations: selectedLocations, guests }),
   ]);
+  let initialResponse = null;
+  let initialError: string | null = null;
+
+  if (hasSearchQuery) {
+    try {
+      initialResponse = await searchProperties(parsedSearch.data);
+    } catch (error) {
+      initialError = error instanceof Error ? error.message : 'Search failed';
+    }
+  }
   const faqs = await getFaqs();
 
   return (
@@ -44,6 +63,8 @@ export default async function LocaleHomePage({
         featuredLocations={featuredLocations}
         locationOptions={locationOptions}
         searchCalendars={searchCalendars}
+        initialResponse={initialResponse}
+        initialError={initialError}
       />
 
       <section id="faq" className="px-4 pb-8 pt-8 md:px-8">
