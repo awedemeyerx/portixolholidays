@@ -153,7 +153,10 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
 
     if (!checkOut || diffNights(checkIn, checkOut) <= 0) {
       setActiveField('checkOut');
+      return;
     }
+
+    setActiveField('checkIn');
   }, [checkIn, checkOut]);
 
   useEffect(() => {

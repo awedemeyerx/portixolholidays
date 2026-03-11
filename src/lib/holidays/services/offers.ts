@@ -130,7 +130,12 @@ export async function getBeds24OfferMap(query: SearchQuery, properties: Property
   }
 
   const missingProperties = properties.filter((property) => missingRoomIds.has(property.beds24RoomId));
-  const liveOffers = await fetchBeds24Offers(query, missingProperties.map((property) => property.beds24RoomId));
+  let liveOffers: Beds24Offer[] = [];
+  try {
+    liveOffers = await fetchBeds24Offers(query, missingProperties.map((property) => property.beds24RoomId));
+  } catch {
+    return offers;
+  }
 
   for (const property of missingProperties) {
     const offer = liveOffers.find((entry) => entry.roomId === property.beds24RoomId);

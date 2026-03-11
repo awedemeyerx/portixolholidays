@@ -100,8 +100,13 @@ export async function searchProperties(query: SearchQuery): Promise<SearchRespon
     .map((property) => {
       const snapshot = snapshots.get(property.beds24RoomId);
       const offer = offers.get(property.beds24RoomId);
-      if (!snapshot || !offer || !offer.available) return null;
-      return toSummary(property, query, snapshot, toPriceBreakdownFromOffer(property, query, offer));
+      if (!snapshot) return null;
+      const fallback = quoteFromInventorySnapshot(property, query, snapshot);
+      if (!fallback) return null;
+      const breakdown = offer?.available
+        ? toPriceBreakdownFromOffer(property, query, offer)
+        : fallback.quote;
+      return toSummary(property, query, snapshot, breakdown);
     })
     .filter((item): item is PropertySummary => Boolean(item))
     .sort((left, right) => {

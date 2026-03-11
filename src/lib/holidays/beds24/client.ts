@@ -201,7 +201,7 @@ function flattenEntries(value: unknown): Record<string, unknown>[] {
 export async function fetchBeds24Offers(query: SearchQuery, roomIds: number[]) {
   const raw = await beds24Request<unknown>('/inventory/rooms/offers', {
     searchParams: {
-      roomId: roomIds.join(','),
+      roomId: roomIds,
       arrival: query.checkIn,
       departure: query.checkOut,
       numAdults: String(query.guests),
