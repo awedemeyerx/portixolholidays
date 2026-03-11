@@ -45,6 +45,15 @@ type Props = {
   featuredLocations: FeaturedLocation[];
   locationOptions: Array<{ value: string; label: string; propertyCount?: number }>;
   searchCalendars: CalendarSnapshot[];
+  initialResponse: SearchResponse | null;
+  initialError: string | null;
+};
+
+type SearchQueryState = {
+  checkIn: string;
+  checkOut: string;
+  guests: string;
+  locations: string[];
 };
 
 function buildSearchQueryString(input: {
@@ -72,15 +81,16 @@ export function SearchShell({
   featuredLocations,
   locationOptions,
   searchCalendars,
+  initialResponse,
+  initialError,
 }: Props) {
   const t = useTranslations('Search');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [, startTransition] = useTransition();
-  const [response, setResponse] = useState<SearchResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isFetchingResults, setIsFetchingResults] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [pendingQuery, setPendingQuery] = useState<SearchQueryState | null>(null);
+  const [error, setError] = useState<string | null>(initialError);
 
   const currentQuery = useMemo(() => {
     const checkIn = searchParams.get('checkIn') ?? '';
@@ -89,57 +99,34 @@ export function SearchShell({
     const locations = searchParams.getAll('location');
     return { checkIn, checkOut, guests, locations };
   }, [searchParams]);
+  const activeQuery = pendingQuery ?? currentQuery;
   const selectedGuests = useMemo(() => {
-    const guests = Number(currentQuery.guests);
+    const guests = Number(activeQuery.guests);
     return Number.isFinite(guests) && guests > 0 ? guests : 2;
-  }, [currentQuery.guests]);
-  const hasCompleteQuery = Boolean(currentQuery.checkIn && currentQuery.checkOut && currentQuery.guests);
+  }, [activeQuery.guests]);
+  const hasCompleteQuery = Boolean(activeQuery.checkIn && activeQuery.checkOut && activeQuery.guests);
   const hasInvalidRange = Boolean(
-    currentQuery.checkIn && currentQuery.checkOut && diffNights(currentQuery.checkIn, currentQuery.checkOut) <= 0,
+    activeQuery.checkIn && activeQuery.checkOut && diffNights(activeQuery.checkIn, activeQuery.checkOut) <= 0,
   );
 
   useEffect(() => {
-    if (!hasCompleteQuery || hasInvalidRange) {
-      setResponse(null);
-      setError(null);
-      setIsFetchingResults(false);
-      return;
+    setError(initialError);
+  }, [initialError]);
+
+  useEffect(() => {
+    if (!pendingQuery) return;
+
+    const sameQuery =
+      pendingQuery.checkIn === currentQuery.checkIn &&
+      pendingQuery.checkOut === currentQuery.checkOut &&
+      pendingQuery.guests === currentQuery.guests &&
+      pendingQuery.locations.length === currentQuery.locations.length &&
+      pendingQuery.locations.every((location, index) => location === currentQuery.locations[index]);
+
+    if (sameQuery) {
+      setPendingQuery(null);
     }
-
-    const controller = new AbortController();
-    setError(null);
-    setIsFetchingResults(true);
-
-    fetch(
-      `/api/search?${buildSearchQueryString({
-        checkIn: currentQuery.checkIn,
-        checkOut: currentQuery.checkOut,
-        guests: currentQuery.guests,
-        locale,
-        locations: currentQuery.locations,
-      })}`,
-      { signal: controller.signal },
-    )
-      .then(async (res) => {
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(String(body.error ?? 'Search failed'));
-        }
-        return res.json();
-      })
-      .then((data: SearchResponse) => {
-        setResponse(data);
-      })
-      .catch((requestError) => {
-        if ((requestError as Error).name === 'AbortError') return;
-        setError(requestError instanceof Error ? requestError.message : 'Search failed');
-      })
-      .finally(() => {
-        setIsFetchingResults(false);
-      });
-
-    return () => controller.abort();
-  }, [currentQuery, hasCompleteQuery, hasInvalidRange, locale]);
+  }, [currentQuery, pendingQuery]);
 
   const queryString = useMemo(() => {
     return buildSearchQueryString({
@@ -151,42 +138,61 @@ export function SearchShell({
   }, [currentQuery]);
 
   function onSubmit(nextQuery: { checkIn: string; checkOut: string; guests: number; locations: string[] }) {
-    const params = buildSearchQueryString({
+    const nextState = {
       checkIn: nextQuery.checkIn,
       checkOut: nextQuery.checkOut,
       guests: String(nextQuery.guests),
       locations: nextQuery.locations,
-    });
+    };
+    const params = buildSearchQueryString(nextState);
+    setError(null);
+    setPendingQuery(nextState);
     startTransition(() => {
       router.replace(`${pathname}?${params}`, { scroll: false });
     });
   }
 
   function onClear() {
-    const params = buildSearchQueryString({
+    const nextState = {
+      checkIn: '',
+      checkOut: '',
+      guests: '',
       locations: currentQuery.locations,
+    };
+    const params = buildSearchQueryString({
+      locations: nextState.locations,
     });
+    setError(null);
+    setPendingQuery(nextState);
     startTransition(() => {
       router.replace(params ? `${pathname}?${params}` : pathname, { scroll: false });
     });
   }
 
   function onAlternativeSelect(window: AlternativeWindow) {
-    const params = buildSearchQueryString({
+    const nextState = {
       checkIn: window.checkIn,
       checkOut: window.checkOut,
       guests: String(selectedGuests),
       locations: currentQuery.locations,
-    });
+    };
+    const params = buildSearchQueryString(nextState);
+    setError(null);
+    setPendingQuery(nextState);
     startTransition(() => {
       router.replace(`${pathname}?${params}`, { scroll: false });
     });
   }
 
+  const response = initialResponse;
   const results = response?.results ?? [];
   const showFeatured = !response && !hasCompleteQuery;
   const showLocations = showFeatured && featuredLocations.length > 0;
-  const showLoadingPanel = hasCompleteQuery && !response && isFetchingResults;
+  const isSubmittingSearch = Boolean(
+    isPending && pendingQuery?.checkIn && pendingQuery.checkOut && pendingQuery.guests && !hasInvalidRange,
+  );
+  const showLoadingPanel = Boolean(!response && isSubmittingSearch);
+  const showRecheckingBanner = Boolean(response && isSubmittingSearch);
 
   return (
     <div className="space-y-10">
@@ -208,7 +214,7 @@ export function SearchShell({
               submitLabel={t('submit')}
               loadingLabel={t('loading')}
               helperText={hero.hint}
-              isPending={isFetchingResults}
+              isPending={isSubmittingSearch}
               calendars={searchCalendars}
               locationOptions={locationOptions}
               onSubmit={onSubmit}
@@ -243,7 +249,7 @@ export function SearchShell({
 
           {error ? <p className="rounded-3xl bg-terracotta/10 px-5 py-4 text-sm text-terracotta">{error}</p> : null}
 
-          {response && isFetchingResults ? (
+          {showRecheckingBanner ? (
             <div className="flex items-center gap-3 rounded-[1.5rem] border border-sea/12 bg-white/70 px-4 py-3 text-sm text-ink/72">
               <span className="loading-wheel" aria-hidden="true" />
               <span>{response ? t('rechecking') : t('checking')}</span>
