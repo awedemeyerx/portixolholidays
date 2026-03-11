@@ -52,7 +52,7 @@ export default async function LocaleLayout({
           locale={locale}
           brandName={settings.brandName}
           labels={{
-            properties: messages.Header.properties,
+            locations: messages.Header.locations,
             faq: messages.Header.faq,
             contact: messages.Header.contact,
           }}

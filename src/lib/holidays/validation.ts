@@ -3,6 +3,15 @@ import { LOCALES } from './types';
 import { diffNights } from './dates';
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const locationArray = z.preprocess((value) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+  if (typeof value === 'string' && value.trim()) {
+    return [value.trim()];
+  }
+  return [];
+}, z.array(z.string().min(1)).max(12));
 
 export const localeSchema = z.enum(LOCALES);
 
@@ -12,6 +21,7 @@ export const searchQuerySchema = z
     checkOut: isoDate,
     guests: z.coerce.number().int().min(1).max(12),
     locale: localeSchema,
+    locations: locationArray.optional().default([]),
   })
   .refine((value) => diffNights(value.checkIn, value.checkOut) > 0, {
     message: 'Checkout must be after checkin.',

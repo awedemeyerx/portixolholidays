@@ -18,6 +18,8 @@ type Beds24TokenState = {
   expiresAt: number;
 };
 
+type Beds24SearchParamValue = string | number | boolean | Array<string | number | boolean>;
+
 let tokenState: Beds24TokenState | null = null;
 
 const API_BASE = process.env.BEDS24_API_BASE_URL?.trim() || 'https://beds24.com/api/v2';
@@ -79,13 +81,20 @@ async function beds24Request<T>(
     method = 'GET',
     searchParams,
     body,
-  }: { method?: 'GET' | 'POST'; searchParams?: Record<string, string>; body?: unknown } = {},
+  }: { method?: 'GET' | 'POST'; searchParams?: Record<string, Beds24SearchParamValue>; body?: unknown } = {},
 ) {
   const token = await getBeds24Token();
   const url = new URL(`${API_BASE}${pathname}`);
   if (searchParams) {
     Object.entries(searchParams).forEach(([key, value]) => {
-      url.searchParams.set(key, value);
+      if (Array.isArray(value)) {
+        value.forEach((item) => {
+          url.searchParams.append(key, String(item));
+        });
+        return;
+      }
+
+      url.searchParams.set(key, String(value));
     });
   }
 
@@ -150,6 +159,31 @@ function normalizeOfferEntry(raw: Record<string, unknown>): Beds24Offer | null {
   };
 }
 
+function normalizeOfferDataEntry(raw: Record<string, unknown>): Beds24Offer | null {
+  const roomId = Number(raw.roomId ?? raw.id ?? raw.room_id ?? 0);
+  if (!roomId) return null;
+
+  const offer = Array.isArray(raw.offers) && raw.offers.length > 0 && raw.offers[0] && typeof raw.offers[0] === 'object'
+    ? (raw.offers[0] as Record<string, unknown>)
+    : null;
+
+  if (!offer) return null;
+
+  const totalPrice = Number(offer.price ?? offer.totalPrice ?? offer.total ?? 0);
+  if (!Number.isFinite(totalPrice) || totalPrice <= 0) return null;
+
+  return {
+    roomId,
+    available: Number(offer.unitsAvailable ?? 0) > 0,
+    totalPrice,
+    pricePerNight: 0,
+    cleaningFee: 0,
+    taxes: 0,
+    minimumStay: 1,
+    currency: String(raw.currency ?? 'EUR'),
+  };
+}
+
 function flattenEntries(value: unknown): Record<string, unknown>[] {
   if (Array.isArray(value)) {
     return value.flatMap((item) => flattenEntries(item));
@@ -170,18 +204,41 @@ export async function fetchBeds24Offers(query: SearchQuery, roomIds: number[]) {
       roomId: roomIds.join(','),
       arrival: query.checkIn,
       departure: query.checkOut,
-      numAdult: String(query.guests),
+      numAdults: String(query.guests),
     },
   });
+
+  const dataEntries = Array.isArray((raw as { data?: unknown[] }).data)
+    ? ((raw as { data?: unknown[] }).data as Record<string, unknown>[])
+    : [];
+
+  const normalizedFromData = dataEntries.map(normalizeOfferDataEntry).filter(Boolean) as Beds24Offer[];
+  if (normalizedFromData.length > 0) {
+    return normalizedFromData;
+  }
 
   const entries = flattenEntries(raw);
   return entries.map(normalizeOfferEntry).filter(Boolean) as Beds24Offer[];
 }
 
-export async function fetchBeds24PropertyCatalog() {
+export async function fetchBeds24PropertyCatalog(options?: {
+  ids?: number[];
+  includeAllRooms?: boolean;
+  includeLanguages?: string[];
+  includeTexts?: string[];
+  includePictures?: boolean;
+  includeOffers?: boolean;
+  includePriceRules?: boolean;
+}) {
   return beds24Request<unknown>('/properties', {
     searchParams: {
-      includeAllRooms: 'true',
+      ...(options?.ids?.length ? { id: options.ids } : {}),
+      includeAllRooms: options?.includeAllRooms ?? true,
+      ...(options?.includeLanguages?.length ? { includeLanguages: options.includeLanguages } : {}),
+      ...(options?.includeTexts?.length ? { includeTexts: options.includeTexts } : {}),
+      ...(typeof options?.includePictures === 'boolean' ? { includePictures: options.includePictures } : {}),
+      ...(typeof options?.includeOffers === 'boolean' ? { includeOffers: options.includeOffers } : {}),
+      ...(typeof options?.includePriceRules === 'boolean' ? { includePriceRules: options.includePriceRules } : {}),
     },
   });
 }

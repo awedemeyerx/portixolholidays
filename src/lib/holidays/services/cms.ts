@@ -1,7 +1,9 @@
 import { fallbackFaqs, fallbackLegalPages, fallbackProperties, fallbackSiteSettings } from '../data/fallback';
+import { remember } from '../cache/memory';
 import { pickLocalized } from '../localize';
 import { resolveBeds24ContentForProperties } from './beds24-content';
-import type { FAQEntry, LegalPageRecord, Locale, PropertyRecord, SiteSettingsRecord } from '../types';
+import { attachLocationsToProperties, getLocations } from './locations';
+import type { FAQEntry, LegalPageRecord, Locale, LocationRecord, PropertyRecord, SiteSettingsRecord } from '../types';
 import { getPayloadClient } from '@/lib/payload';
 
 function emptyLocalized() {
@@ -59,8 +61,12 @@ function stripFallbackPropertyContent(property: PropertyRecord): PropertyRecord 
 }
 
 const safeFallbackProperties = fallbackProperties.map((property) => stripFallbackPropertyContent(property));
+const CMS_TTL_MS = 60_000;
 
 function mapProperty(doc: Record<string, unknown>): PropertyRecord {
+  const locationDoc = doc.location && typeof doc.location === 'object'
+    ? (doc.location as Record<string, unknown>)
+    : undefined;
   const slugs = mapLocalizedGroup(doc.slugs as Record<string, unknown>, 'slugs');
   const title = mapLocalizedGroup(doc.title as Record<string, unknown>, 'title');
   const summary = mapLocalizedGroup(doc.summary as Record<string, unknown>, 'summary');
@@ -113,6 +119,9 @@ function mapProperty(doc: Record<string, unknown>): PropertyRecord {
     priority: Number(doc.priority ?? 999),
     beds24PropertyId: Number(doc.beds24PropertyId ?? 0),
     beds24RoomId: Number(doc.beds24RoomId ?? 0),
+    locationId: locationDoc ? String(locationDoc.id ?? '') : typeof doc.location === 'string' ? String(doc.location) : undefined,
+    locationSlugs: locationDoc ? mapLocalizedGroup(locationDoc.slugs as Record<string, unknown>, 'slugs') : undefined,
+    locationTitle: locationDoc ? mapLocalizedGroup(locationDoc.title as Record<string, unknown>, 'title') : undefined,
     slugs,
     title,
     summary,
@@ -131,6 +140,8 @@ function mapProperty(doc: Record<string, unknown>): PropertyRecord {
       nightly: Number(pricing?.nightly ?? 220),
       cleaningFee: Number(pricing?.cleaningFee ?? 80),
       taxes: Number(pricing?.taxes ?? 20),
+      taxPercentage: Number(pricing?.taxPercentage ?? 0),
+      taxPersonNight: Number(pricing?.taxPersonNight ?? 0),
       minStay: Number(pricing?.minStay ?? 3),
       depositRate: Number(pricing?.depositRate ?? 0.3),
       currency: 'EUR',
@@ -143,92 +154,101 @@ function mapProperty(doc: Record<string, unknown>): PropertyRecord {
 }
 
 export async function getSiteSettings(): Promise<SiteSettingsRecord> {
-  const payload = await getPayloadClient();
-  if (!payload) return fallbackSiteSettings;
+  return remember('cms:site-settings', CMS_TTL_MS, async () => {
+    const payload = await getPayloadClient();
+    if (!payload) return fallbackSiteSettings;
 
-  try {
-    const global = (await payload.findGlobal({ slug: 'site-settings' })) as Record<string, unknown>;
-    return {
-      ...fallbackSiteSettings,
-      brandName: String(global.brandName ?? fallbackSiteSettings.brandName),
-      supportEmail: String(global.supportEmail ?? fallbackSiteSettings.supportEmail),
-      supportPhone: String(global.supportPhone ?? fallbackSiteSettings.supportPhone),
-      whatsapp: String(global.whatsapp ?? fallbackSiteSettings.whatsapp),
-      depositRate: Number(global.depositRate ?? fallbackSiteSettings.depositRate),
-      heroEyebrow: mapLocalizedGroupWithFallback(
-        global.heroEyebrow as Record<string, unknown>,
-        'heroEyebrow',
-        fallbackSiteSettings.heroEyebrow,
-      ),
-      heroTitle: mapLocalizedGroupWithFallback(
-        global.heroTitle as Record<string, unknown>,
-        'heroTitle',
-        fallbackSiteSettings.heroTitle,
-      ),
-      heroSubtitle: mapLocalizedGroupWithFallback(
-        global.heroSubtitle as Record<string, unknown>,
-        'heroSubtitle',
-        fallbackSiteSettings.heroSubtitle,
-      ),
-      heroPrimaryCta: mapLocalizedGroupWithFallback(
-        global.heroPrimaryCta as Record<string, unknown>,
-        'heroPrimaryCta',
-        fallbackSiteSettings.heroPrimaryCta,
-      ),
-      heroSecondaryCta: mapLocalizedGroupWithFallback(
-        global.heroSecondaryCta as Record<string, unknown>,
-        'heroSecondaryCta',
-        fallbackSiteSettings.heroSecondaryCta,
-      ),
-      searchHint: mapLocalizedGroupWithFallback(
-        global.searchHint as Record<string, unknown>,
-        'searchHint',
-        fallbackSiteSettings.searchHint,
-      ),
-      searchEmptyTitle: mapLocalizedGroupWithFallback(
-        global.searchEmptyTitle as Record<string, unknown>,
-        'searchEmptyTitle',
-        fallbackSiteSettings.searchEmptyTitle,
-      ),
-      searchEmptyBody: mapLocalizedGroupWithFallback(
-        global.searchEmptyBody as Record<string, unknown>,
-        'searchEmptyBody',
-        fallbackSiteSettings.searchEmptyBody,
-      ),
-      faqTitle: mapLocalizedGroupWithFallback(
-        global.faqTitle as Record<string, unknown>,
-        'faqTitle',
-        fallbackSiteSettings.faqTitle,
-      ),
-      faqIntro: mapLocalizedGroupWithFallback(
-        global.faqIntro as Record<string, unknown>,
-        'faqIntro',
-        fallbackSiteSettings.faqIntro,
-      ),
-    };
-  } catch {
-    return fallbackSiteSettings;
-  }
+    try {
+      const global = (await payload.findGlobal({ slug: 'site-settings' })) as Record<string, unknown>;
+      return {
+        ...fallbackSiteSettings,
+        brandName: String(global.brandName ?? fallbackSiteSettings.brandName),
+        supportEmail: String(global.supportEmail ?? fallbackSiteSettings.supportEmail),
+        supportPhone: String(global.supportPhone ?? fallbackSiteSettings.supportPhone),
+        whatsapp: String(global.whatsapp ?? fallbackSiteSettings.whatsapp),
+        depositRate: Number(global.depositRate ?? fallbackSiteSettings.depositRate),
+        heroEyebrow: mapLocalizedGroupWithFallback(
+          global.heroEyebrow as Record<string, unknown>,
+          'heroEyebrow',
+          fallbackSiteSettings.heroEyebrow,
+        ),
+        heroTitle: mapLocalizedGroupWithFallback(
+          global.heroTitle as Record<string, unknown>,
+          'heroTitle',
+          fallbackSiteSettings.heroTitle,
+        ),
+        heroSubtitle: mapLocalizedGroupWithFallback(
+          global.heroSubtitle as Record<string, unknown>,
+          'heroSubtitle',
+          fallbackSiteSettings.heroSubtitle,
+        ),
+        heroPrimaryCta: mapLocalizedGroupWithFallback(
+          global.heroPrimaryCta as Record<string, unknown>,
+          'heroPrimaryCta',
+          fallbackSiteSettings.heroPrimaryCta,
+        ),
+        heroSecondaryCta: mapLocalizedGroupWithFallback(
+          global.heroSecondaryCta as Record<string, unknown>,
+          'heroSecondaryCta',
+          fallbackSiteSettings.heroSecondaryCta,
+        ),
+        searchHint: mapLocalizedGroupWithFallback(
+          global.searchHint as Record<string, unknown>,
+          'searchHint',
+          fallbackSiteSettings.searchHint,
+        ),
+        searchEmptyTitle: mapLocalizedGroupWithFallback(
+          global.searchEmptyTitle as Record<string, unknown>,
+          'searchEmptyTitle',
+          fallbackSiteSettings.searchEmptyTitle,
+        ),
+        searchEmptyBody: mapLocalizedGroupWithFallback(
+          global.searchEmptyBody as Record<string, unknown>,
+          'searchEmptyBody',
+          fallbackSiteSettings.searchEmptyBody,
+        ),
+        faqTitle: mapLocalizedGroupWithFallback(
+          global.faqTitle as Record<string, unknown>,
+          'faqTitle',
+          fallbackSiteSettings.faqTitle,
+        ),
+        faqIntro: mapLocalizedGroupWithFallback(
+          global.faqIntro as Record<string, unknown>,
+          'faqIntro',
+          fallbackSiteSettings.faqIntro,
+        ),
+      };
+    } catch {
+      return fallbackSiteSettings;
+    }
+  });
 }
 
 export async function getProperties(): Promise<PropertyRecord[]> {
-  const payload = await getPayloadClient();
-  if (!payload) return resolveBeds24ContentForProperties(safeFallbackProperties);
+  return remember('cms:properties', CMS_TTL_MS, async () => {
+    const payload = await getPayloadClient();
+    if (!payload) {
+      const resolved = await resolveBeds24ContentForProperties(safeFallbackProperties);
+      return attachLocationsToProperties(resolved);
+    }
 
-  try {
-    const result = await payload.find({
-      collection: 'properties',
-      depth: 2,
-      limit: 100,
-      sort: 'priority',
-    });
-    const mapped = result.docs.length > 0
-      ? result.docs.map((doc) => mapProperty(doc as unknown as Record<string, unknown>))
-      : safeFallbackProperties;
-    return resolveBeds24ContentForProperties(mapped);
-  } catch {
-    return resolveBeds24ContentForProperties(safeFallbackProperties);
-  }
+    try {
+      const result = await payload.find({
+        collection: 'properties',
+        depth: 2,
+        limit: 100,
+        sort: 'priority',
+      });
+      const mapped = result.docs.length > 0
+        ? result.docs.map((doc) => mapProperty(doc as unknown as Record<string, unknown>))
+        : safeFallbackProperties;
+      const resolved = await resolveBeds24ContentForProperties(mapped);
+      return attachLocationsToProperties(resolved);
+    } catch {
+      const resolved = await resolveBeds24ContentForProperties(safeFallbackProperties);
+      return attachLocationsToProperties(resolved);
+    }
+  });
 }
 
 export async function getPropertyBySlug(slug: string, locale: Locale) {
@@ -237,43 +257,47 @@ export async function getPropertyBySlug(slug: string, locale: Locale) {
 }
 
 export async function getFaqs(): Promise<FAQEntry[]> {
-  const payload = await getPayloadClient();
-  if (!payload) return fallbackFaqs.sort((a, b) => a.order - b.order);
+  return remember('cms:faqs', CMS_TTL_MS, async () => {
+    const payload = await getPayloadClient();
+    if (!payload) return fallbackFaqs.sort((a, b) => a.order - b.order);
 
-  try {
-    const result = await payload.find({
-      collection: 'faq-entries',
-      limit: 100,
-      sort: 'order',
-    });
-    return result.docs.map((doc, index) => ({
-      id: String((doc as Record<string, unknown>).id ?? index),
-      order: Number((doc as Record<string, unknown>).order ?? index),
-      question: mapLocalizedGroup((doc as Record<string, unknown>).question as Record<string, unknown>, 'question'),
-      answer: mapLocalizedGroup((doc as Record<string, unknown>).answer as Record<string, unknown>, 'answer'),
-    }));
-  } catch {
-    return fallbackFaqs.sort((a, b) => a.order - b.order);
-  }
+    try {
+      const result = await payload.find({
+        collection: 'faq-entries',
+        limit: 100,
+        sort: 'order',
+      });
+      return result.docs.map((doc, index) => ({
+        id: String((doc as Record<string, unknown>).id ?? index),
+        order: Number((doc as Record<string, unknown>).order ?? index),
+        question: mapLocalizedGroup((doc as Record<string, unknown>).question as Record<string, unknown>, 'question'),
+        answer: mapLocalizedGroup((doc as Record<string, unknown>).answer as Record<string, unknown>, 'answer'),
+      }));
+    } catch {
+      return fallbackFaqs.sort((a, b) => a.order - b.order);
+    }
+  });
 }
 
 export async function getLegalPages(): Promise<LegalPageRecord[]> {
-  const payload = await getPayloadClient();
-  if (!payload) return fallbackLegalPages;
+  return remember('cms:legal-pages', CMS_TTL_MS, async () => {
+    const payload = await getPayloadClient();
+    if (!payload) return fallbackLegalPages;
 
-  try {
-    const result = await payload.find({
-      collection: 'legal-pages',
-      limit: 100,
-    });
-    return result.docs.map((doc) => ({
-      slug: String((doc as Record<string, unknown>).slug ?? 'imprint') as LegalPageRecord['slug'],
-      title: mapLocalizedGroup((doc as Record<string, unknown>).title as Record<string, unknown>, 'title'),
-      body: mapLocalizedGroup((doc as Record<string, unknown>).body as Record<string, unknown>, 'body'),
-    }));
-  } catch {
-    return fallbackLegalPages;
-  }
+    try {
+      const result = await payload.find({
+        collection: 'legal-pages',
+        limit: 100,
+      });
+      return result.docs.map((doc) => ({
+        slug: String((doc as Record<string, unknown>).slug ?? 'imprint') as LegalPageRecord['slug'],
+        title: mapLocalizedGroup((doc as Record<string, unknown>).title as Record<string, unknown>, 'title'),
+        body: mapLocalizedGroup((doc as Record<string, unknown>).body as Record<string, unknown>, 'body'),
+      }));
+    } catch {
+      return fallbackLegalPages;
+    }
+  });
 }
 
 export async function getLegalPage(slug: LegalPageRecord['slug']) {
@@ -292,4 +316,40 @@ export async function getFeaturedProperties(locale: Locale) {
     locationLabel: pickLocalized(property.locationLabel, locale),
     maxGuests: property.maxGuests,
   }));
+}
+
+export async function getLocationOptions(locale: Locale) {
+  const locations = await getLocations();
+  return locations
+    .sort((left, right) => left.priority - right.priority)
+    .map((location) => ({
+      value: location.slugs[locale],
+      label: pickLocalized(location.title, locale),
+      propertyCount: location.beds24PropertyIds.length,
+    }));
+}
+
+export async function getFeaturedLocations(locale: Locale) {
+  const [locations, properties] = await Promise.all([getLocations(), getProperties()]);
+  const propertyCountByLocation = new Map<string, number>();
+  const heroByLocation = new Map<string, string>();
+
+  for (const property of properties) {
+    if (!property.locationId) continue;
+    propertyCountByLocation.set(property.locationId, (propertyCountByLocation.get(property.locationId) ?? 0) + 1);
+    if (!heroByLocation.has(property.locationId) && property.heroImage) {
+      heroByLocation.set(property.locationId, property.heroImage);
+    }
+  }
+
+  return locations
+    .sort((left, right) => left.priority - right.priority)
+    .map((location: LocationRecord) => ({
+      id: location.id,
+      slug: location.slugs[locale],
+      title: pickLocalized(location.title, locale),
+      summary: pickLocalized(location.summary, locale),
+      heroImage: location.heroImage || heroByLocation.get(location.id) || '',
+      propertyCount: propertyCountByLocation.get(location.id) ?? location.beds24PropertyIds.length,
+    }));
 }

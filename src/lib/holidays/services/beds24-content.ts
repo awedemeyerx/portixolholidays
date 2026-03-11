@@ -1,6 +1,7 @@
 import { fetchBeds24PropertyCatalog, isBeds24Configured } from '../beds24/client';
+import { clearRemembered } from '../cache/memory';
 import { readCache, writeCache } from '../cache/json-store';
-import type { Beds24ContentRecord, Localized, PropertyRecord } from '../types';
+import type { Beds24ContentRecord, Localized, PropertyPricingFallback, PropertyRecord } from '../types';
 import { getPayloadClient } from '@/lib/payload';
 
 type RawDoc = Record<string, unknown>;
@@ -155,6 +156,104 @@ function maybeString(...values: unknown[]) {
   return '';
 }
 
+function decodeHtmlEntities(value: string) {
+  return value
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;|&rsquo;|&lsquo;/gi, "'")
+    .replace(/&ldquo;|&rdquo;/gi, '"')
+    .replace(/&ndash;|&mdash;/gi, ' - ')
+    .replace(/&hellip;/gi, '...')
+    .replace(/&uuml;/gi, 'ü')
+    .replace(/&ouml;/gi, 'ö')
+    .replace(/&auml;/gi, 'ä')
+    .replace(/&szlig;/gi, 'ß')
+    .replace(/&Uuml;/g, 'Ü')
+    .replace(/&Ouml;/g, 'Ö')
+    .replace(/&Auml;/g, 'Ä');
+}
+
+function normalizeMultilineText(value: string) {
+  const lines = value
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.replace(/[ \t]+/g, ' ').trim());
+
+  const normalized: string[] = [];
+  let previousBlank = true;
+
+  for (const line of lines) {
+    if (!line) {
+      if (!previousBlank) {
+        normalized.push('');
+      }
+      previousBlank = true;
+      continue;
+    }
+
+    normalized.push(line);
+    previousBlank = false;
+  }
+
+  return normalized.join('\n').trim();
+}
+
+function htmlToText(value: unknown) {
+  if (typeof value !== 'string' || !value.trim()) {
+    return '';
+  }
+
+  const withBreaks = value
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|h[1-6]|ul|ol)>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '- ')
+    .replace(/<\/li>/gi, '\n');
+
+  const withoutTags = withBreaks.replace(/<[^>]+>/g, ' ');
+  return normalizeMultilineText(decodeHtmlEntities(withoutTags));
+}
+
+function mapLocalizedEntries(entries: unknown, fieldNames: string[]): Localized {
+  if (!Array.isArray(entries)) return emptyLocalized();
+
+  const localized = emptyLocalized();
+  for (const entry of entries) {
+    if (!entry || typeof entry !== 'object') continue;
+    const record = entry as RawDoc;
+    const language = String(record.language ?? '').trim().toLowerCase();
+    if (!['de', 'en', 'es'].includes(language)) continue;
+
+    for (const fieldName of fieldNames) {
+      const candidate = htmlToText(record[fieldName]);
+      if (candidate) {
+        localized[language as keyof Localized] = candidate;
+        break;
+      }
+    }
+  }
+
+  const fallback = localized.de || localized.en || localized.es;
+  if (!fallback) return emptyLocalized();
+
+  return {
+    de: localized.de || fallback,
+    en: localized.en || fallback,
+    es: localized.es || fallback,
+  };
+}
+
+function extractLocationLabelFromDescription(value: string) {
+  const lines = normalizeMultilineText(value).split('\n');
+  for (const line of lines) {
+    const match = line.match(/^(?:lage|location|ubicacion|ubicación)\s*[–:-]\s*(.+)$/i);
+    if (match?.[1]) {
+      return match[1].trim();
+    }
+  }
+  return '';
+}
+
 function looksLikeImage(value: string) {
   return /^https?:\/\//i.test(value) && /\.(avif|gif|jpe?g|png|webp)(\?|#|$)/i.test(value);
 }
@@ -193,6 +292,14 @@ function flattenRecords(value: unknown): RawDoc[] {
   return [];
 }
 
+function extractCatalogRecords(value: unknown): RawDoc[] {
+  const data = value && typeof value === 'object' ? (value as { data?: unknown }).data : undefined;
+  if (Array.isArray(data)) {
+    return data.filter((entry): entry is RawDoc => Boolean(entry && typeof entry === 'object'));
+  }
+  return flattenRecords(value);
+}
+
 function buildLocationLabel(record: RawDoc) {
   return maybeString(
     [record.area, record.city].filter(Boolean).join(', '),
@@ -205,6 +312,8 @@ function buildLocationLabel(record: RawDoc) {
 
 function normalizeContentRecord(record: RawDoc): Omit<Beds24ContentRecord, 'id' | 'lastSyncedAt'> | null {
   const primaryRoomType = Array.isArray(record.roomTypes) ? (record.roomTypes[0] as RawDoc | undefined) : undefined;
+  const propertyTexts = Array.isArray(record.texts) ? (record.texts as RawDoc[]) : [];
+  const roomTexts = Array.isArray(primaryRoomType?.texts) ? (primaryRoomType.texts as RawDoc[]) : [];
   const beds24PropertyId = maybeNumber(
     record.propertyId,
     record.propertyID,
@@ -223,6 +332,14 @@ function normalizeContentRecord(record: RawDoc): Omit<Beds24ContentRecord, 'id' 
     return null;
   }
 
+  const headline = mapLocalizedEntries([...roomTexts, ...propertyTexts], ['contentHeadline', 'headline', 'displayName']);
+  const description = mapLocalizedEntries(
+    [...propertyTexts, ...roomTexts],
+    ['propertyDescription1', 'propertyDescription', 'roomDescription', 'contentDescription', 'propertyDescriptionBookingPage1'],
+  );
+  const locationDescription = mapLocalizedEntries(propertyTexts, ['locationDescription']);
+  const directions = mapLocalizedEntries(propertyTexts, ['directions']);
+  const houseRules = mapLocalizedEntries(propertyTexts, ['houseRules', 'generalPolicy', 'cancellationPolicy']);
   const title = toLocalized(
     record.name ??
       record.title ??
@@ -232,7 +349,7 @@ function normalizeContentRecord(record: RawDoc): Omit<Beds24ContentRecord, 'id' 
       (record.room as RawDoc | undefined)?.name ??
       (record.property as RawDoc | undefined)?.name,
   );
-  const description = toLocalized(
+  const fallbackDescription = toLocalized(
     record.description ??
       record.longDescription ??
       record.roomDescription ??
@@ -241,11 +358,29 @@ function normalizeContentRecord(record: RawDoc): Omit<Beds24ContentRecord, 'id' 
       (record.room as RawDoc | undefined)?.description ??
       (record.property as RawDoc | undefined)?.description,
   );
-  const summarySource =
-    maybeString(record.summary, record.shortDescription, record.teaser, primaryRoomType?.name) ||
-    summarize(description.de || description.en || description.es);
-  const summary = toLocalized(summarySource);
-  const locationLabel = toLocalized(buildLocationLabel(record));
+  const normalizedDescription =
+    primaryLocalizedText(description) ? description : {
+      de: htmlToText(fallbackDescription.de),
+      en: htmlToText(fallbackDescription.en),
+      es: htmlToText(fallbackDescription.es),
+    };
+  const summary = primaryLocalizedText(headline)
+    ? headline
+    : toLocalized(
+        maybeString(record.summary, record.shortDescription, record.teaser, primaryRoomType?.name) ||
+          summarize(normalizedDescription.de || normalizedDescription.en || normalizedDescription.es),
+      );
+  const derivedLocationLabel = {
+    de: extractLocationLabelFromDescription(normalizedDescription.de),
+    en: extractLocationLabelFromDescription(normalizedDescription.en),
+    es: extractLocationLabelFromDescription(normalizedDescription.es),
+  };
+  const fallbackLocationLabel = buildLocationLabel(record);
+  const locationLabel = {
+    de: derivedLocationLabel.de || fallbackLocationLabel,
+    en: derivedLocationLabel.en || derivedLocationLabel.de || fallbackLocationLabel,
+    es: derivedLocationLabel.es || derivedLocationLabel.en || derivedLocationLabel.de || fallbackLocationLabel,
+  };
   const images = Array.from(
     new Set(
       collectImageUrls(
@@ -259,14 +394,31 @@ function normalizeContentRecord(record: RawDoc): Omit<Beds24ContentRecord, 'id' 
       ),
     ),
   );
+  const taxPercentage = Number(primaryRoomType?.taxPercentage ?? 0);
+  const taxPersonNight = Number(primaryRoomType?.taxPerson ?? 0);
+  const pricing: Partial<PropertyPricingFallback> = {
+    nightly: maybeNumber(primaryRoomType?.rackRate, primaryRoomType?.minPrice),
+    cleaningFee: Number.isFinite(Number(primaryRoomType?.cleaningFee ?? NaN))
+      ? Number(primaryRoomType?.cleaningFee ?? 0)
+      : undefined,
+    taxes: taxPercentage === 0 && taxPersonNight === 0 ? 0 : undefined,
+    taxPercentage: Number.isFinite(taxPercentage) ? taxPercentage : undefined,
+    taxPersonNight: Number.isFinite(taxPersonNight) ? taxPersonNight : undefined,
+    minStay: maybeNumber(primaryRoomType?.minStay, record.minStay),
+    currency: String(record.currency ?? 'EUR') as PropertyPricingFallback['currency'],
+  };
 
   return {
     beds24PropertyId: beds24PropertyId ?? 0,
     beds24RoomId: beds24RoomId ?? 0,
     title,
     summary,
-    description,
+    description: normalizedDescription,
     locationLabel,
+    locationDescription,
+    directions,
+    houseRules,
+    pricing,
     heroImage: images[0] ?? '',
     gallery: images,
     bedrooms: maybeNumber(record.bedrooms, record.beds, record.numBedrooms),
@@ -284,11 +436,17 @@ function mapBeds24ContentDoc(doc: RawDoc): Beds24ContentRecord {
   const summary = mapLocalizedGroup(doc.summary as RawDoc | undefined, 'summary');
   const description = mapLocalizedGroup(doc.description as RawDoc | undefined, 'description');
   const locationLabel = mapLocalizedGroup(doc.locationLabel as RawDoc | undefined, 'locationLabel');
+  const locationDescription = mapLocalizedGroup(doc.locationDescription as RawDoc | undefined, 'locationDescription');
+  const directions = mapLocalizedGroup(doc.directions as RawDoc | undefined, 'directions');
+  const houseRules = mapLocalizedGroup(doc.houseRules as RawDoc | undefined, 'houseRules');
   const gallery = Array.isArray(doc.galleryUrls)
     ? doc.galleryUrls
         .map((item) => String((item as RawDoc).url ?? '').trim())
         .filter(Boolean)
     : [];
+  const pricing = doc.pricing && typeof doc.pricing === 'object'
+    ? (doc.pricing as Record<string, unknown>)
+    : undefined;
 
   return {
     id: String(doc.id),
@@ -298,6 +456,20 @@ function mapBeds24ContentDoc(doc: RawDoc): Beds24ContentRecord {
     summary,
     description,
     locationLabel,
+    locationDescription,
+    directions,
+    houseRules,
+    pricing: pricing
+      ? {
+          nightly: Number(pricing.nightly ?? 0) || undefined,
+          cleaningFee: Number(pricing.cleaningFee ?? 0) || 0,
+          taxes: Number(pricing.taxes ?? 0) || 0,
+          taxPercentage: Number(pricing.taxPercentage ?? 0) || 0,
+          taxPersonNight: Number(pricing.taxPersonNight ?? 0) || 0,
+          minStay: Number(pricing.minStay ?? 0) || undefined,
+          currency: 'EUR',
+        }
+      : undefined,
     heroImage: String(doc.heroImageUrl ?? '').trim(),
     gallery,
     bedrooms: maybeNumber(doc.bedrooms),
@@ -314,6 +486,18 @@ export function mergePropertyWithBeds24Content(property: PropertyRecord, content
   const hasVerifiedText = hasVerifiedBeds24Raw(content);
   const verifiedHeroImage = isVerifiedPropertyImage(content.heroImage) ? content.heroImage : '';
   const verifiedGallery = verifiedGalleryUrls(content);
+  const pricing = content.pricing
+    ? {
+        ...property.pricing,
+        nightly: content.pricing.nightly ?? property.pricing.nightly,
+        cleaningFee: content.pricing.cleaningFee ?? property.pricing.cleaningFee,
+        taxes: content.pricing.taxes ?? property.pricing.taxes,
+        taxPercentage: content.pricing.taxPercentage ?? property.pricing.taxPercentage ?? 0,
+        taxPersonNight: content.pricing.taxPersonNight ?? property.pricing.taxPersonNight ?? 0,
+        minStay: content.pricing.minStay ?? property.pricing.minStay,
+        currency: content.pricing.currency ?? property.pricing.currency,
+      }
+    : property.pricing;
 
   return {
     ...property,
@@ -332,6 +516,7 @@ export function mergePropertyWithBeds24Content(property: PropertyRecord, content
     bedrooms: content.bedrooms ?? property.bedrooms,
     bathrooms: content.bathrooms ?? property.bathrooms,
     maxGuests: content.maxGuests ?? property.maxGuests,
+    pricing,
   };
 }
 
@@ -387,12 +572,14 @@ function createSyntheticPropertyFromBeds24Content(content: Beds24ContentRecord):
     amenities: [],
     houseRules: [],
     pricing: {
-      nightly: 240,
-      cleaningFee: 90,
-      taxes: 25,
-      minStay: 3,
+      nightly: content.pricing?.nightly ?? 240,
+      cleaningFee: content.pricing?.cleaningFee ?? 0,
+      taxes: content.pricing?.taxes ?? 0,
+      taxPercentage: content.pricing?.taxPercentage ?? 0,
+      taxPersonNight: content.pricing?.taxPersonNight ?? 0,
+      minStay: content.pricing?.minStay ?? 3,
       depositRate: 0.3,
-      currency: 'EUR',
+      currency: content.pricing?.currency ?? 'EUR',
     },
     cancellationSummary: emptyLocalized(),
     seoTitle: localizeWithFallback(content.title, titleText),
@@ -441,9 +628,13 @@ export async function getLiveBeds24ContentRecords() {
   const cached = await readCache<Beds24ContentRecord[]>('beds24-content', 'catalog_live');
   if (cached) return cached;
 
-  const catalog = await fetchBeds24PropertyCatalog();
+  const catalog = await fetchBeds24PropertyCatalog({
+    includeAllRooms: true,
+    includeLanguages: ['all'],
+    includeTexts: ['all'],
+  });
   const seenKeys = new Set<string>();
-  const normalized = flattenRecords(catalog)
+  const normalized = extractCatalogRecords(catalog)
     .map((record) => normalizeContentRecord(record))
     .filter((record): record is Omit<Beds24ContentRecord, 'id' | 'lastSyncedAt'> => Boolean(record))
     .filter((record) => {
@@ -495,7 +686,11 @@ export async function syncBeds24PropertyContent() {
   }
 
   const [catalog, existing] = await Promise.all([
-    fetchBeds24PropertyCatalog(),
+    fetchBeds24PropertyCatalog({
+      includeAllRooms: true,
+      includeLanguages: ['all'],
+      includeTexts: ['all'],
+    }),
     payload.find({
       collection: 'beds24-property-content',
       limit: 500,
@@ -514,7 +709,7 @@ export async function syncBeds24PropertyContent() {
   const updated: string[] = [];
   const skipped: string[] = [];
 
-  for (const record of flattenRecords(catalog)) {
+  for (const record of extractCatalogRecords(catalog)) {
     const normalized = normalizeContentRecord(record);
     if (!normalized) continue;
 
@@ -554,11 +749,34 @@ export async function syncBeds24PropertyContent() {
         locationLabelEN: contentRecord.locationLabel.en,
         locationLabelES: contentRecord.locationLabel.es,
       },
+      locationDescription: {
+        locationDescriptionDE: contentRecord.locationDescription.de,
+        locationDescriptionEN: contentRecord.locationDescription.en,
+        locationDescriptionES: contentRecord.locationDescription.es,
+      },
+      directions: {
+        directionsDE: contentRecord.directions.de,
+        directionsEN: contentRecord.directions.en,
+        directionsES: contentRecord.directions.es,
+      },
+      houseRules: {
+        houseRulesDE: contentRecord.houseRules.de,
+        houseRulesEN: contentRecord.houseRules.en,
+        houseRulesES: contentRecord.houseRules.es,
+      },
       heroImageUrl: contentRecord.heroImage,
       galleryUrls: contentRecord.gallery.map((url) => ({ url })),
       bedrooms: contentRecord.bedrooms,
       bathrooms: contentRecord.bathrooms,
       maxGuests: contentRecord.maxGuests,
+      pricing: {
+        nightly: contentRecord.pricing?.nightly,
+        cleaningFee: contentRecord.pricing?.cleaningFee,
+        taxes: contentRecord.pricing?.taxes,
+        taxPercentage: contentRecord.pricing?.taxPercentage,
+        taxPersonNight: contentRecord.pricing?.taxPersonNight,
+        minStay: contentRecord.pricing?.minStay,
+      },
       lastSyncedAt: contentRecord.lastSyncedAt,
       raw: contentRecord.raw,
     };
@@ -589,6 +807,9 @@ export async function syncBeds24PropertyContent() {
       id: String(existingDoc.id),
     });
   }
+
+  clearRemembered('cms:properties');
+  clearRemembered('cms:locations');
 
   return {
     created,

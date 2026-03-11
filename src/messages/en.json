@@ -1,6 +1,6 @@
 {
   "Header": {
-    "properties": "Properties",
+    "locations": "Locations",
     "faq": "FAQ",
     "contact": "Contact"
   },
@@ -8,6 +8,8 @@
     "arrival": "Arrival",
     "departure": "Departure",
     "guests": "Guests",
+    "locations": "Locations",
+    "allLocations": "All locations",
     "selectArrival": "Choose arrival date",
     "selectDeparture": "Choose departure date",
     "invalidRange": "Departure must be after arrival.",
@@ -19,6 +21,8 @@
     "rechecking": "The results are being checked again against the current snapshot.",
     "checkingTitle": "Checking properties",
     "checkingBody": "Availability and pricing are loading from the current Beds24 snapshot.",
+    "locationsSectionLabel": "Locations",
+    "locationsSectionTitle": "Explore locations",
     "resultsTitle": "Available homes",
     "resultsSubtitle": "Every result is based on the current inventory snapshot.",
     "empty": "No homes are available",
@@ -30,7 +34,8 @@
     "select": "View property",
     "beds": "Bedrooms",
     "baths": "Bathrooms",
-    "guestsMax": "max guests"
+    "guestsMax": "max guests",
+    "homesInLocation": "homes"
   },
   "Property": {
     "overview": "Overview",

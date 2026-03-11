@@ -3,15 +3,15 @@ import { diffNights } from '../dates';
 import { localizeProperty } from '../localize';
 import { getPropertyBySlug } from './cms';
 import { getInventorySnapshot, quoteFromInventorySnapshot } from './inventory-snapshots';
+import { getBeds24OfferMap, toPriceBreakdownFromOffer } from './offers';
 import type { Beds24Offer, PropertyQuote, SearchQuery } from '../types';
 
 function toLiveQuote(
-  offer: Beds24Offer,
   propertyId: string,
   localeData: ReturnType<typeof localizeProperty>,
   locale: SearchQuery['locale'],
+  quote: PropertyQuote['quote'],
 ): PropertyQuote {
-  const nights = Math.max(1, Math.round((offer.totalPrice - offer.cleaningFee - offer.taxes) / Math.max(offer.pricePerNight, 1)));
   return {
     propertyId,
     slug: localeData.slug,
@@ -29,17 +29,8 @@ function toLiveQuote(
     amenities: localeData.amenities,
     houseRules: localeData.houseRules,
     cancellationSummary: localeData.cancellationSummary,
-    quote: {
-      currency: offer.currency,
-      nights,
-      pricePerNight: offer.pricePerNight,
-      subtotal: offer.pricePerNight * nights,
-      cleaningFee: offer.cleaningFee,
-      taxes: offer.taxes,
-      totalPrice: offer.totalPrice,
-      depositAmount: Math.round(offer.totalPrice * 0.3),
-    },
-    available: offer.available,
+    quote,
+    available: quote.totalPrice > 0,
     locale,
   };
 }
@@ -74,15 +65,18 @@ export async function getPropertyQuoteBySlug(
       }
     }
 
-    const liveQuote = toLiveQuote(offer, property.id, localized, query.locale);
+    const liveQuote = toLiveQuote(
+      property.id,
+      localized,
+      query.locale,
+      toPriceBreakdownFromOffer(property, query, offer),
+    );
     liveQuote.heroImage = property.heroImage;
     liveQuote.gallery = property.gallery;
     liveQuote.bedrooms = property.bedrooms;
     liveQuote.bathrooms = property.bathrooms;
     liveQuote.maxGuests = property.maxGuests;
-    liveQuote.quote.nights = nights;
-    liveQuote.quote.subtotal = offer.pricePerNight * nights;
-    liveQuote.quote.depositAmount = Math.round(offer.totalPrice * property.pricing.depositRate);
+    liveQuote.available = offer.available;
 
     return liveQuote;
   }
@@ -90,6 +84,12 @@ export async function getPropertyQuoteBySlug(
   const snapshot = await getInventorySnapshot(property);
   const priced = quoteFromInventorySnapshot(property, query, snapshot);
   if (!priced) return null;
+
+  const cachedOffers = await getBeds24OfferMap(query, [property]);
+  const offer = cachedOffers.get(property.beds24RoomId);
+  const quoteBreakdown = offer?.available
+    ? toPriceBreakdownFromOffer(property, query, offer)
+    : priced.quote;
 
   return {
     propertyId: property.id,
@@ -108,7 +108,7 @@ export async function getPropertyQuoteBySlug(
     amenities: localized.amenities,
     houseRules: localized.houseRules,
     cancellationSummary: localized.cancellationSummary,
-    quote: priced.quote,
+    quote: quoteBreakdown,
     available: true,
     locale: query.locale,
   } satisfies PropertyQuote;

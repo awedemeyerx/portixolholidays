@@ -20,6 +20,15 @@ type FeaturedProperty = {
   maxGuests: number;
 };
 
+type FeaturedLocation = {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  heroImage: string;
+  propertyCount: number;
+};
+
 type Props = {
   locale: Locale;
   hero: {
@@ -32,9 +41,29 @@ type Props = {
     emptyBody: string;
   };
   featuredProperties: FeaturedProperty[];
+  featuredLocations: FeaturedLocation[];
+  locationOptions: Array<{ value: string; label: string; propertyCount?: number }>;
 };
 
-export function SearchShell({ locale, hero, featuredProperties }: Props) {
+function buildSearchQueryString(input: {
+  checkIn?: string;
+  checkOut?: string;
+  guests?: string;
+  locale?: string;
+  locations?: string[];
+}) {
+  const params = new URLSearchParams();
+  if (input.checkIn) params.set('checkIn', input.checkIn);
+  if (input.checkOut) params.set('checkOut', input.checkOut);
+  if (input.guests) params.set('guests', input.guests);
+  if (input.locale) params.set('locale', input.locale);
+  (input.locations ?? []).forEach((location) => {
+    if (location) params.append('location', location);
+  });
+  return params.toString();
+}
+
+export function SearchShell({ locale, hero, featuredProperties, featuredLocations, locationOptions }: Props) {
   const t = useTranslations('Search');
   const router = useRouter();
   const pathname = usePathname();
@@ -48,7 +77,8 @@ export function SearchShell({ locale, hero, featuredProperties }: Props) {
     const checkIn = searchParams.get('checkIn') ?? '';
     const checkOut = searchParams.get('checkOut') ?? '';
     const guests = searchParams.get('guests') ?? '';
-    return { checkIn, checkOut, guests };
+    const locations = searchParams.getAll('location');
+    return { checkIn, checkOut, guests, locations };
   }, [searchParams]);
   const selectedGuests = useMemo(() => {
     const guests = Number(currentQuery.guests);
@@ -72,7 +102,13 @@ export function SearchShell({ locale, hero, featuredProperties }: Props) {
     setIsFetchingResults(true);
 
     fetch(
-      `/api/search?checkIn=${encodeURIComponent(currentQuery.checkIn)}&checkOut=${encodeURIComponent(currentQuery.checkOut)}&guests=${encodeURIComponent(currentQuery.guests)}&locale=${locale}`,
+      `/api/search?${buildSearchQueryString({
+        checkIn: currentQuery.checkIn,
+        checkOut: currentQuery.checkOut,
+        guests: currentQuery.guests,
+        locale,
+        locations: currentQuery.locations,
+      })}`,
       { signal: controller.signal },
     )
       .then(async (res) => {
@@ -97,41 +133,66 @@ export function SearchShell({ locale, hero, featuredProperties }: Props) {
   }, [currentQuery, hasCompleteQuery, hasInvalidRange, locale]);
 
   const queryString = useMemo(() => {
-    const params = new URLSearchParams();
-    if (currentQuery.checkIn) params.set('checkIn', currentQuery.checkIn);
-    if (currentQuery.checkOut) params.set('checkOut', currentQuery.checkOut);
-    if (currentQuery.guests) params.set('guests', currentQuery.guests);
-    return params.toString();
+    return buildSearchQueryString({
+      checkIn: currentQuery.checkIn,
+      checkOut: currentQuery.checkOut,
+      guests: currentQuery.guests,
+      locations: currentQuery.locations,
+    });
   }, [currentQuery]);
 
-  function onSubmit(nextQuery: { checkIn: string; checkOut: string; guests: number }) {
-    const params = new URLSearchParams();
-    params.set('checkIn', nextQuery.checkIn);
-    params.set('checkOut', nextQuery.checkOut);
-    params.set('guests', String(nextQuery.guests));
+  function onSubmit(nextQuery: { checkIn: string; checkOut: string; guests: number; locations: string[] }) {
+    const params = buildSearchQueryString({
+      checkIn: nextQuery.checkIn,
+      checkOut: nextQuery.checkOut,
+      guests: String(nextQuery.guests),
+      locations: nextQuery.locations,
+    });
     startTransition(() => {
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      router.replace(`${pathname}?${params}`, { scroll: false });
     });
   }
 
   function onClear() {
+    const params = buildSearchQueryString({
+      locations: currentQuery.locations,
+    });
     startTransition(() => {
-      router.replace(pathname, { scroll: false });
+      router.replace(params ? `${pathname}?${params}` : pathname, { scroll: false });
     });
   }
 
   function onAlternativeSelect(window: AlternativeWindow) {
-    const params = new URLSearchParams();
-    params.set('checkIn', window.checkIn);
-    params.set('checkOut', window.checkOut);
-    params.set('guests', String(selectedGuests));
+    const params = buildSearchQueryString({
+      checkIn: window.checkIn,
+      checkOut: window.checkOut,
+      guests: String(selectedGuests),
+      locations: currentQuery.locations,
+    });
     startTransition(() => {
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      router.replace(`${pathname}?${params}`, { scroll: false });
+    });
+  }
+
+  function onLocationSpotlightSelect(locationSlug: string) {
+    const nextLocations =
+      currentQuery.locations.length === 1 && currentQuery.locations[0] === locationSlug
+        ? []
+        : [locationSlug];
+    const params = buildSearchQueryString({
+      checkIn: currentQuery.checkIn,
+      checkOut: currentQuery.checkOut,
+      guests: currentQuery.guests,
+      locations: nextLocations,
+    });
+    startTransition(() => {
+      router.replace(params ? `${pathname}?${params}` : pathname, { scroll: false });
     });
   }
 
   const results = response?.results ?? [];
   const showFeatured = !response && !hasCompleteQuery;
+  const showLocations = showFeatured && featuredLocations.length > 0;
   const showLoadingPanel = hasCompleteQuery && !response && isFetchingResults;
 
   return (
@@ -150,16 +211,20 @@ export function SearchShell({ locale, hero, featuredProperties }: Props) {
               initialCheckIn={currentQuery.checkIn}
               initialCheckOut={currentQuery.checkOut}
               initialGuests={selectedGuests}
+              initialLocations={currentQuery.locations}
               submitLabel={t('submit')}
               loadingLabel={t('loading')}
               helperText={hero.hint}
               isPending={isPending}
+              locationOptions={locationOptions}
               onSubmit={onSubmit}
               onClear={onClear}
               labels={{
                 arrival: t('arrival'),
                 departure: t('departure'),
                 guests: t('guests'),
+                locations: t('locations'),
+                allLocations: t('allLocations'),
                 selectArrival: t('selectArrival'),
                 selectDeparture: t('selectDeparture'),
                 invalidRange: t('invalidRange'),
@@ -171,13 +236,13 @@ export function SearchShell({ locale, hero, featuredProperties }: Props) {
         </div>
       </section>
 
-      <section id="properties" className="px-4 pb-8 md:px-8">
+      <section id="locations" className="px-4 pb-8 md:px-8">
         <div className="mx-auto max-w-7xl space-y-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="label-caps text-xs text-sea">{t('resultsTitle')}</p>
+              <p className="label-caps text-xs text-sea">{showLocations ? t('locationsSectionLabel') : t('resultsTitle')}</p>
               <h2 className="font-serif text-4xl leading-tight">
-                {response || hasCompleteQuery ? t('resultsSubtitle') : hero.ctaPrimary}
+                {showLocations ? t('locationsSectionTitle') : response || hasCompleteQuery ? t('resultsSubtitle') : hero.ctaPrimary}
               </h2>
             </div>
           </div>
@@ -251,7 +316,20 @@ export function SearchShell({ locale, hero, featuredProperties }: Props) {
             </div>
           ) : null}
 
-          {showFeatured ? (
+          {showLocations ? (
+            <div className="grid gap-5 md:grid-cols-2">
+              {featuredLocations.map((location) => (
+                <LocationCard
+                  key={location.id}
+                  location={location}
+                  selected={currentQuery.locations.includes(location.slug)}
+                  onSelect={onLocationSpotlightSelect}
+                />
+              ))}
+            </div>
+          ) : null}
+
+          {showFeatured && !showLocations ? (
             <div className="grid gap-5 md:grid-cols-3">
               {featuredProperties.map((property) => (
                 <LinkCard key={property.id} locale={locale} property={property} />
@@ -297,5 +375,52 @@ function LinkCard({ locale, property }: { locale: Locale; property: FeaturedProp
         </p>
       </div>
     </Link>
+  );
+}
+
+function LocationCard({
+  location,
+  selected,
+  onSelect,
+}: {
+  location: FeaturedLocation;
+  selected: boolean;
+  onSelect: (slug: string) => void;
+}) {
+  const hasHeroImage = Boolean(location.heroImage);
+  const hasSummary = Boolean(location.summary.trim());
+  const t = useTranslations('Search');
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(location.slug)}
+      className={`glass-card block overflow-hidden rounded-[2rem] text-left transition hover:-translate-y-1 ${
+        selected ? 'ring-2 ring-sea/40' : ''
+      }`}
+    >
+      <div className="relative h-64 overflow-hidden">
+        {hasHeroImage ? (
+          <Image
+            src={location.heroImage}
+            alt={location.title}
+            fill
+            sizes="(max-width: 767px) 100vw, 50vw"
+            className="object-cover"
+          />
+        ) : (
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(10,116,140,0.18),transparent_58%),linear-gradient(135deg,rgba(244,227,211,0.9),rgba(255,255,255,0.98))]"
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-ink/65" />
+      </div>
+      <div className="space-y-3 p-5">
+        <p className="label-caps text-[11px] text-sea">{location.propertyCount} {t('homesInLocation')}</p>
+        <h3 className="font-serif text-2xl">{location.title}</h3>
+        {hasSummary ? <p className="text-sm leading-6 text-ink/70">{location.summary}</p> : null}
+      </div>
+    </button>
   );
 }

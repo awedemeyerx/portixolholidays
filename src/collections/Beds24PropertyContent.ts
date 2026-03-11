@@ -32,6 +32,9 @@ export const Beds24PropertyContent: CollectionConfig = {
     localizedTextarea('summary', 'Summary', false),
     localizedTextarea('description', 'Description', false),
     localizedText('locationLabel', 'Location Label', false),
+    localizedTextarea('locationDescription', 'Location Description', false),
+    localizedTextarea('directions', 'Directions', false),
+    localizedTextarea('houseRules', 'House Rules', false),
     {
       name: 'heroImageUrl',
       type: 'text',
@@ -58,6 +61,18 @@ export const Beds24PropertyContent: CollectionConfig = {
     {
       name: 'maxGuests',
       type: 'number',
+    },
+    {
+      name: 'pricing',
+      type: 'group',
+      fields: [
+        { name: 'nightly', type: 'number' },
+        { name: 'cleaningFee', type: 'number' },
+        { name: 'taxes', type: 'number' },
+        { name: 'taxPercentage', type: 'number' },
+        { name: 'taxPersonNight', type: 'number' },
+        { name: 'minStay', type: 'number' },
+      ],
     },
     {
       name: 'lastSyncedAt',

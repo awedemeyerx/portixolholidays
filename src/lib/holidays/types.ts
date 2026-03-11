@@ -12,6 +12,8 @@ export type PropertyPricingFallback = {
   nightly: number;
   cleaningFee: number;
   taxes: number;
+  taxPercentage?: number;
+  taxPersonNight?: number;
   minStay: number;
   depositRate: number;
   currency: 'EUR';
@@ -27,6 +29,9 @@ export type PropertyRecord = {
   priority: number;
   beds24PropertyId: number;
   beds24RoomId: number;
+  locationId?: string;
+  locationSlugs?: Localized;
+  locationTitle?: Localized;
   slugs: Localized;
   title: Localized;
   summary: Localized;
@@ -56,6 +61,10 @@ export type Beds24ContentRecord = {
   summary: Localized;
   description: Localized;
   locationLabel: Localized;
+  locationDescription: Localized;
+  directions: Localized;
+  houseRules: Localized;
+  pricing?: Partial<PropertyPricingFallback>;
   heroImage: string;
   gallery: string[];
   bedrooms?: number;
@@ -63,6 +72,18 @@ export type Beds24ContentRecord = {
   maxGuests?: number;
   lastSyncedAt: string;
   raw?: Record<string, unknown>;
+};
+
+export type LocationRecord = {
+  id: string;
+  priority: number;
+  slugs: Localized;
+  title: Localized;
+  summary: Localized;
+  description: Localized;
+  directions: Localized;
+  heroImage: string;
+  beds24PropertyIds: number[];
 };
 
 export type SiteSettingsRecord = {
@@ -106,6 +127,7 @@ export type SearchQuery = {
   checkOut: string;
   guests: number;
   locale: Locale;
+  locations?: string[];
 };
 
 export type PriceBreakdown = {

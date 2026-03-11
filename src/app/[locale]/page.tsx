@@ -1,7 +1,7 @@
 import { SearchShell } from '@/components/search/search-shell';
 import { localizeSiteSettings, pickLocalized } from '@/lib/holidays/localize';
 import { safeLocale } from '@/lib/holidays/locale';
-import { getFaqs, getFeaturedProperties, getSiteSettings } from '@/lib/holidays/services/cms';
+import { getFaqs, getFeaturedLocations, getFeaturedProperties, getLocationOptions, getSiteSettings } from '@/lib/holidays/services/cms';
 
 export default async function LocaleHomePage({
   params,
@@ -11,7 +11,11 @@ export default async function LocaleHomePage({
   const { locale: rawLocale } = await params;
   const locale = safeLocale(rawLocale);
   const siteSettings = localizeSiteSettings(await getSiteSettings(), locale);
-  const featuredProperties = await getFeaturedProperties(locale);
+  const [featuredProperties, featuredLocations, locationOptions] = await Promise.all([
+    getFeaturedProperties(locale),
+    getFeaturedLocations(locale),
+    getLocationOptions(locale),
+  ]);
   const faqs = await getFaqs();
 
   return (
@@ -28,6 +32,8 @@ export default async function LocaleHomePage({
           emptyBody: siteSettings.searchEmptyBody,
         }}
         featuredProperties={featuredProperties}
+        featuredLocations={featuredLocations}
+        locationOptions={locationOptions}
       />
 
       <section id="faq" className="px-4 pb-8 pt-8 md:px-8">

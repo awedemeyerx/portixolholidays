@@ -6,7 +6,7 @@ type Props = {
   locale: Locale;
   brandName: string;
   labels: {
-    properties: string;
+    locations: string;
     faq: string;
     contact: string;
   };
@@ -20,8 +20,8 @@ export function SiteHeader({ locale, brandName, labels }: Props) {
           {brandName}
         </Link>
         <nav className="hidden items-center gap-6 text-sm text-ink/70 md:flex">
-          <a href="#properties" className="hover:text-ink">
-            {labels.properties}
+          <a href="#locations" className="hover:text-ink">
+            {labels.locations}
           </a>
           <a href="#faq" className="hover:text-ink">
             {labels.faq}

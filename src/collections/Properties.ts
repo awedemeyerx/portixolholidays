@@ -32,6 +32,11 @@ export const Properties: CollectionConfig = {
       type: 'number',
       required: true,
     },
+    {
+      name: 'location',
+      type: 'relationship',
+      relationTo: 'locations',
+    },
     localizedText('slugs', 'Locale Slugs'),
     localizedText('title', 'Title'),
     localizedTextarea('summary', 'Summary'),

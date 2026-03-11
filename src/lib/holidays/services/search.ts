@@ -1,7 +1,8 @@
 import { addDays, diffNights } from '../dates';
 import { localizeProperty } from '../localize';
 import { getProperties } from './cms';
-import { getInventorySnapshot, quoteFromInventorySnapshot } from './inventory-snapshots';
+import { getInventorySnapshot, getInventorySnapshots, quoteFromInventorySnapshot } from './inventory-snapshots';
+import { getBeds24OfferMap, toPriceBreakdownFromOffer } from './offers';
 import type {
   AlternativeWindow,
   CalendarSnapshot,
@@ -11,14 +12,31 @@ import type {
   SearchResponse,
 } from '../types';
 
+function matchesLocationFilter(property: PropertyRecord, locations: string[]) {
+  if (locations.length === 0) return true;
+
+  const candidates = new Set<string>();
+  if (property.locationSlugs) {
+    Object.values(property.locationSlugs)
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .forEach((value) => candidates.add(value));
+  }
+
+  return locations.some((location) => candidates.has(location));
+}
+
 export async function getCalendarSnapshot(property: PropertyRecord) {
   return getInventorySnapshot(property);
 }
 
-function toSummary(property: PropertyRecord, query: SearchQuery, snapshot: CalendarSnapshot): PropertySummary | null {
+function toSummary(
+  property: PropertyRecord,
+  query: SearchQuery,
+  snapshot: CalendarSnapshot,
+  totalPrice: ReturnType<typeof toPriceBreakdownFromOffer>,
+): PropertySummary | null {
   const localized = localizeProperty(property, query.locale);
-  const priced = quoteFromInventorySnapshot(property, query, snapshot);
-  if (!priced) return null;
 
   return {
     propertyId: property.id,
@@ -32,17 +50,16 @@ function toSummary(property: PropertyRecord, query: SearchQuery, snapshot: Calen
     bathrooms: property.bathrooms,
     maxGuests: property.maxGuests,
     available: true,
-    quote: priced.quote,
+    quote: totalPrice,
   };
 }
 
 async function alternativeCount(properties: PropertyRecord[], query: SearchQuery) {
-  const matches = await Promise.all(
-    properties.map(async (property) => {
-      const snapshot = await getInventorySnapshot(property);
-      return Boolean(quoteFromInventorySnapshot(property, query, snapshot));
-    }),
-  );
+  const snapshots = await getInventorySnapshots(properties);
+  const matches = properties.map((property) => {
+    const snapshot = snapshots.get(property.beds24RoomId);
+    return snapshot ? Boolean(quoteFromInventorySnapshot(property, query, snapshot)) : false;
+  });
   return matches.filter(Boolean).length;
 }
 
@@ -68,16 +85,24 @@ async function buildAlternatives(properties: PropertyRecord[], query: SearchQuer
 }
 
 export async function searchProperties(query: SearchQuery): Promise<SearchResponse> {
-  const properties = (await getProperties()).filter((property) => property.maxGuests >= query.guests);
+  const selectedLocations = query.locations ?? [];
+  const properties = (await getProperties()).filter((property) => {
+    return property.maxGuests >= query.guests && matchesLocationFilter(property, selectedLocations);
+  });
+  const snapshots = await getInventorySnapshots(properties);
+  const availableProperties = properties.filter((property) => {
+    const snapshot = snapshots.get(property.beds24RoomId);
+    return snapshot ? Boolean(quoteFromInventorySnapshot(property, query, snapshot)) : false;
+  });
+  const offers = await getBeds24OfferMap(query, availableProperties);
 
-  const results = (
-    await Promise.all(
-      properties.map(async (property) => {
-        const snapshot = await getInventorySnapshot(property);
-        return toSummary(property, query, snapshot);
-      }),
-    )
-  )
+  const results = availableProperties
+    .map((property) => {
+      const snapshot = snapshots.get(property.beds24RoomId);
+      const offer = offers.get(property.beds24RoomId);
+      if (!snapshot || !offer || !offer.available) return null;
+      return toSummary(property, query, snapshot, toPriceBreakdownFromOffer(property, query, offer));
+    })
     .filter((item): item is PropertySummary => Boolean(item))
     .sort((left, right) => {
       const leftProperty = properties.find((property) => property.id === left.propertyId);

@@ -1,4 +1,5 @@
 import { fetchBeds24Calendar, isBeds24Configured } from '../beds24/client';
+import { clearRemembered, remember } from '../cache/memory';
 import { diffNights, enumerateNights } from '../dates';
 import type { CalendarDay, CalendarSnapshot, PriceBreakdown, PropertyRecord, SearchQuery } from '../types';
 import { getPayloadClient } from '@/lib/payload';
@@ -10,6 +11,8 @@ type SyncInventoryOptions = {
   roomIds?: number[];
   propertyIds?: number[];
 };
+
+const SNAPSHOT_TTL_MS = 30_000;
 
 function normalizeDay(value: unknown, property: PropertyRecord): CalendarDay | null {
   if (!value || typeof value !== 'object') return null;
@@ -71,20 +74,32 @@ function payloadSnapshotData(property: PropertyRecord, snapshot: CalendarSnapsho
 }
 
 async function findSnapshotDoc(roomId: number) {
+  const [doc] = await findSnapshotDocs([roomId]);
+  return doc ?? null;
+}
+
+async function findSnapshotDocs(roomIds: number[]) {
+  const uniqueRoomIds = Array.from(new Set(roomIds.filter((value) => Number.isFinite(value) && value > 0)));
+  if (uniqueRoomIds.length === 0) return [];
+
   const payload = await getPayloadClient();
-  if (!payload) return null;
+  if (!payload) return [];
 
-  const result = await payload.find({
-    collection: 'beds24-inventory-snapshots',
-    limit: 1,
-    where: {
-      beds24RoomId: {
-        equals: roomId,
+  return remember(`inventory-snapshots:${uniqueRoomIds.slice().sort((a, b) => a - b).join(',')}`, SNAPSHOT_TTL_MS, async () => {
+    const result = await payload.find({
+      collection: 'beds24-inventory-snapshots',
+      limit: uniqueRoomIds.length,
+      where: {
+        or: uniqueRoomIds.map((roomId) => ({
+          beds24RoomId: {
+            equals: roomId,
+          },
+        })),
       },
-    },
-  });
+    });
 
-  return (result.docs[0] as RawDoc | undefined) ?? null;
+    return result.docs as unknown as RawDoc[];
+  });
 }
 
 async function upsertInventorySnapshot(property: PropertyRecord, snapshot: CalendarSnapshot) {
@@ -108,6 +123,8 @@ async function upsertInventorySnapshot(property: PropertyRecord, snapshot: Calen
       data,
     });
   }
+
+  clearRemembered('inventory-snapshots:');
 
   return snapshot;
 }
@@ -197,6 +214,27 @@ export async function getInventorySnapshot(property: PropertyRecord) {
   return syncInventorySnapshotForProperty(property);
 }
 
+export async function getInventorySnapshots(properties: PropertyRecord[]) {
+  const propertyMap = new Map(properties.map((property) => [property.beds24RoomId, property]));
+  const docs = await findSnapshotDocs(properties.map((property) => property.beds24RoomId));
+  const snapshots = new Map<number, CalendarSnapshot>();
+
+  for (const doc of docs) {
+    const roomId = Number(doc.beds24RoomId ?? 0);
+    const property = propertyMap.get(roomId);
+    if (!property) continue;
+    snapshots.set(roomId, normalizeSnapshotDoc(doc, property));
+  }
+
+  const missingProperties = properties.filter((property) => !snapshots.has(property.beds24RoomId));
+  for (const property of missingProperties) {
+    const snapshot = await getInventorySnapshot(property);
+    snapshots.set(property.beds24RoomId, snapshot);
+  }
+
+  return snapshots;
+}
+
 export function quoteFromInventorySnapshot(property: PropertyRecord, query: SearchQuery, snapshot: CalendarSnapshot) {
   if (query.guests > property.maxGuests) return null;
 
@@ -225,7 +263,12 @@ export function quoteFromInventorySnapshot(property: PropertyRecord, query: Sear
   const subtotal = nightlyPrices.reduce((sum, price) => sum + price, 0);
   const averageNightlyPrice = Math.round(subtotal / Math.max(nightlyPrices.length, 1));
   const cleaningFee = property.pricing.cleaningFee;
-  const taxes = property.pricing.taxes;
+  const taxes =
+    property.pricing.taxPercentage && property.pricing.taxPercentage > 0
+      ? Math.round((subtotal * property.pricing.taxPercentage) / 100)
+      : property.pricing.taxPersonNight && property.pricing.taxPersonNight > 0
+        ? Math.round(property.pricing.taxPersonNight * query.guests * nights)
+        : property.pricing.taxes;
   const totalPrice = subtotal + cleaningFee + taxes;
 
   const quote: PriceBreakdown = {

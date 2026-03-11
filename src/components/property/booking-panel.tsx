@@ -59,7 +59,7 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
     (selection?.checkIn && selection?.checkOut) || (activeQuery?.checkIn && activeQuery?.checkOut),
   );
 
-  function updateStay(nextStay: { checkIn: string; checkOut: string; guests: number }) {
+  function updateStay(nextStay: { checkIn: string; checkOut: string; guests: number; locations: string[] }) {
     const params = new URLSearchParams();
     params.set('checkIn', nextStay.checkIn);
     params.set('checkOut', nextStay.checkOut);
@@ -69,7 +69,11 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
     requestIdRef.current = requestId;
     setError(null);
     setQuoteError(null);
-    setActiveQuery(nextStay);
+    setActiveQuery({
+      checkIn: nextStay.checkIn,
+      checkOut: nextStay.checkOut,
+      guests: nextStay.guests,
+    });
     setActiveQuote(null);
     setIsFetchingQuote(true);
 
@@ -175,6 +179,8 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
             arrival: searchT('arrival'),
             departure: searchT('departure'),
             guests: searchT('guests'),
+            locations: searchT('locations'),
+            allLocations: searchT('allLocations'),
             selectArrival: searchT('selectArrival'),
             selectDeparture: searchT('selectDeparture'),
             invalidRange: searchT('invalidRange'),

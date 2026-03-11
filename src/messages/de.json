@@ -1,6 +1,6 @@
 {
   "Header": {
-    "properties": "Objekte",
+    "locations": "Locations",
     "faq": "FAQ",
     "contact": "Kontakt"
   },
@@ -8,6 +8,8 @@
     "arrival": "Anreise",
     "departure": "Abreise",
     "guests": "Gäste",
+    "locations": "Locations",
+    "allLocations": "Alle Locations",
     "selectArrival": "Anreisetag wählen",
     "selectDeparture": "Abreisetag wählen",
     "invalidRange": "Die Abreise muss nach der Anreise liegen.",
@@ -19,6 +21,8 @@
     "rechecking": "Die Ergebnisse werden mit dem aktuellen Snapshot erneut geprüft.",
     "checkingTitle": "Objekte werden überprüft",
     "checkingBody": "Verfügbarkeit und Preise werden aus dem aktuellen Beds24-Snapshot geladen.",
+    "locationsSectionLabel": "Locations",
+    "locationsSectionTitle": "Unsere Lagen",
     "resultsTitle": "Freie Häuser",
     "resultsSubtitle": "Alle Ergebnisse basieren auf dem aktuellen Inventory-Snapshot.",
     "empty": "Keine Objekte frei",
@@ -30,7 +34,8 @@
     "select": "Objekt ansehen",
     "beds": "Schlafzimmer",
     "baths": "Bäder",
-    "guestsMax": "max. Gäste"
+    "guestsMax": "max. Gäste",
+    "homesInLocation": "Häuser"
   },
   "Property": {
     "overview": "Überblick",

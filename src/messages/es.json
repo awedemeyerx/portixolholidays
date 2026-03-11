@@ -1,6 +1,6 @@
 {
   "Header": {
-    "properties": "Alojamientos",
+    "locations": "Locations",
     "faq": "FAQ",
     "contact": "Contacto"
   },
@@ -8,6 +8,8 @@
     "arrival": "Llegada",
     "departure": "Salida",
     "guests": "Huéspedes",
+    "locations": "Locations",
+    "allLocations": "Todas las locations",
     "selectArrival": "Elegir llegada",
     "selectDeparture": "Elegir salida",
     "invalidRange": "La salida debe ser posterior a la llegada.",
@@ -19,6 +21,8 @@
     "rechecking": "Los resultados se están validando otra vez contra el snapshot actual.",
     "checkingTitle": "Comprobando alojamientos",
     "checkingBody": "La disponibilidad y los precios se cargan desde el snapshot actual de Beds24.",
+    "locationsSectionLabel": "Locations",
+    "locationsSectionTitle": "Nuestras zonas",
     "resultsTitle": "Casas disponibles",
     "resultsSubtitle": "Cada resultado se basa en el snapshot actual del inventario.",
     "empty": "No hay alojamientos libres",
@@ -30,7 +34,8 @@
     "select": "Ver alojamiento",
     "beds": "Dormitorios",
     "baths": "Baños",
-    "guestsMax": "máx. huéspedes"
+    "guestsMax": "máx. huéspedes",
+    "homesInLocation": "casas"
   },
   "Property": {
     "overview": "Resumen",

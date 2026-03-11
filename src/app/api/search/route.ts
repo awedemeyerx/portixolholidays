@@ -9,6 +9,7 @@ export async function GET(request: Request) {
     checkOut: searchParams.get('checkOut'),
     guests: searchParams.get('guests'),
     locale: searchParams.get('locale'),
+    locations: searchParams.getAll('location'),
   });
 
   if (!parsed.success) {
@@ -19,7 +20,7 @@ export async function GET(request: Request) {
     const results = await searchProperties(parsed.data);
     return NextResponse.json(results, {
       headers: {
-        'Cache-Control': 'no-store',
+        'Cache-Control': 'public, max-age=0, s-maxage=120, stale-while-revalidate=600',
       },
     });
   } catch (error) {
