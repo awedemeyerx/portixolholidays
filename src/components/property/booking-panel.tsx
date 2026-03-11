@@ -29,7 +29,7 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
   const searchT = useTranslations('Search');
   const router = useRouter();
   const pathname = usePathname();
-  const [isUpdatingStay, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const requestIdRef = useRef(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -170,7 +170,7 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
           initialGuests={selection?.guests ?? 2}
           submitLabel={t('checkAvailability')}
           loadingLabel={searchT('loading')}
-          isPending={isUpdatingStay || isFetchingQuote}
+          isPending={isFetchingQuote}
           calendar={calendar}
           onSubmit={updateStay}
           onClear={clearStay}
@@ -218,10 +218,10 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
             <div className="mt-3 space-y-2 text-sm text-ink/72">
               <p>{t('nights')}: {activeQuote.quote.nights}</p>
               <p>{t('cancellation')}: {activeQuote.cancellationSummary}</p>
-              <p>Subtotal: {formatMoney(activeQuote.quote.subtotal, activeQuote.quote.currency, locale)}</p>
-              <p>Cleaning: {formatMoney(activeQuote.quote.cleaningFee, activeQuote.quote.currency, locale)}</p>
-              <p>Taxes: {formatMoney(activeQuote.quote.taxes, activeQuote.quote.currency, locale)}</p>
-              <p className="font-medium text-ink">Total: {formatMoney(activeQuote.quote.totalPrice, activeQuote.quote.currency, locale)}</p>
+              <p>{t('subtotal')}: {formatMoney(activeQuote.quote.subtotal, activeQuote.quote.currency, locale)}</p>
+              <p>{t('cleaningFee')}: {formatMoney(activeQuote.quote.cleaningFee, activeQuote.quote.currency, locale)}</p>
+              <p>{t('mallorcaTouristTax')}: {formatMoney(activeQuote.quote.taxes, activeQuote.quote.currency, locale)}</p>
+              <p className="font-medium text-ink">{t('totalLabel')}: {formatMoney(activeQuote.quote.totalPrice, activeQuote.quote.currency, locale)}</p>
               <p className="font-medium text-terracotta">
                 {t('payDeposit')}: {formatMoney(activeQuote.quote.depositAmount, activeQuote.quote.currency, locale)}
               </p>

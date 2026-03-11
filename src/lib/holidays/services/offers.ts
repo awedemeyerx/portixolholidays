@@ -166,8 +166,15 @@ export async function getBeds24OfferMap(query: SearchQuery, properties: Property
 export function toPriceBreakdownFromOffer(property: PropertyRecord, query: SearchQuery, offer: Beds24Offer): PriceBreakdown {
   const nights = diffNights(query.checkIn, query.checkOut);
   const subtotal = Math.max(offer.totalPrice, 0);
-  const cleaningFee = Math.max(offer.cleaningFee, 0);
-  const taxes = Math.max(offer.taxes, 0);
+  const cleaningFee = offer.cleaningFee > 0 ? offer.cleaningFee : property.pricing.cleaningFee ?? 0;
+  const taxes =
+    offer.taxes > 0
+      ? offer.taxes
+      : property.pricing.taxPercentage && property.pricing.taxPercentage > 0
+        ? Math.round((subtotal * property.pricing.taxPercentage) / 100)
+        : property.pricing.taxPersonNight && property.pricing.taxPersonNight > 0
+          ? Math.round(property.pricing.taxPersonNight * query.guests * nights)
+          : property.pricing.taxes ?? 0;
   const totalPrice = subtotal + cleaningFee + taxes;
   const pricePerNight =
     offer.pricePerNight > 0 ? Math.round(offer.pricePerNight) : nights > 0 ? Math.round(subtotal / nights) : subtotal;

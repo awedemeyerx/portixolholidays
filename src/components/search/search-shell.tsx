@@ -76,7 +76,7 @@ export function SearchShell({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [response, setResponse] = useState<SearchResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isFetchingResults, setIsFetchingResults] = useState(false);
@@ -223,7 +223,7 @@ export function SearchShell({
               submitLabel={t('submit')}
               loadingLabel={t('loading')}
               helperText={hero.hint}
-              isPending={isPending}
+              isPending={isFetchingResults}
               calendars={searchCalendars}
               locationOptions={locationOptions}
               onSubmit={onSubmit}
