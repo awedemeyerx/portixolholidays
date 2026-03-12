@@ -17,14 +17,16 @@ export function LocaleSwitcher({ currentLocale }: { currentLocale: Locale }) {
   const suffix = searchParams.toString() ? `?${searchParams.toString()}` : '';
 
   return (
-    <div className="inline-flex rounded-[1rem] border border-ink/10 bg-white/72 p-1 text-xs uppercase tracking-[0.2em] shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
+    <div className="inline-flex rounded-[0.9rem] border border-[#ded2c2] bg-white/76 p-[3px] text-[11px] uppercase tracking-[0.18em] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
       {LOCALES.map((locale) => (
         <Link
           key={locale}
           href={`${replaceLocale(pathname, locale)}${suffix}`}
           scroll={false}
-          className={`rounded-[0.8rem] px-3 py-2 transition ${
-            locale === currentLocale ? 'bg-ink text-foam shadow-[0_8px_18px_rgba(21,53,67,0.18)]' : 'text-ink/55 hover:bg-sea/6 hover:text-ink'
+          className={`rounded-[0.7rem] px-3 py-2 transition ${
+            locale === currentLocale
+              ? 'bg-ink text-foam shadow-[0_6px_14px_rgba(21,53,67,0.14)]'
+              : 'text-ink/52 hover:bg-[#f1ebe2] hover:text-ink'
           }`}
         >
           {locale}

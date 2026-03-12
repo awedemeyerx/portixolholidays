@@ -22,8 +22,8 @@ export function SiteFooter({ locale, brandName, supportEmail, supportPhone, lega
           <Link href={`/${locale}`} className="inline-flex items-center">
             <BrandLogo
               alt={brandName}
-              className="h-auto w-[210px] md:w-[260px]"
-              sizes="(max-width: 767px) 210px, 260px"
+              className="h-auto w-[105px] md:w-[130px]"
+              sizes="(max-width: 767px) 105px, 130px"
             />
           </Link>
           <div className="text-sm leading-7 text-ink/70">
