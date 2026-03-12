@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { BrandLogo } from './brand-logo';
 import { LocaleSwitcher } from './locale-switcher';
 import type { Locale } from '@/lib/holidays/types';
 
@@ -16,8 +17,13 @@ export function SiteHeader({ locale, brandName, labels }: Props) {
   return (
     <header className="sticky top-0 z-30 px-4 py-4 md:px-8">
       <div className="glass-card mx-auto flex max-w-7xl items-center justify-between rounded-full px-4 py-3 md:px-6">
-        <Link href={`/${locale}`} className="label-caps text-xs font-semibold text-ink md:text-sm">
-          {brandName}
+        <Link href={`/${locale}`} className="flex shrink-0 items-center">
+          <BrandLogo
+            alt={brandName}
+            priority
+            className="h-auto w-[168px] md:w-[220px]"
+            sizes="(max-width: 767px) 168px, 220px"
+          />
         </Link>
         <nav className="hidden items-center gap-6 text-sm text-ink/70 md:flex">
           <Link href={`/${locale}/locations`} className="hover:text-ink">

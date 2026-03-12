@@ -33,6 +33,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'www.portixolholidays.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'rmuas7fp0d3ofmmb.public.blob.vercel-storage.com',
+      },
     ],
   },
 };

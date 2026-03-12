@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { BrandLogo } from './brand-logo';
 import type { Locale } from '@/lib/holidays/types';
 
 type Props = {
@@ -18,8 +19,13 @@ export function SiteFooter({ locale, brandName, supportEmail, supportPhone, lega
     <footer id="contact" className="px-4 pb-10 pt-20 md:px-8">
       <div className="glass-card mx-auto grid max-w-7xl gap-8 rounded-[2rem] px-6 py-8 md:grid-cols-[1.4fr_1fr] md:px-10">
         <div className="space-y-4">
-          <p className="label-caps text-xs text-sea">Portixol Holidays</p>
-          <h2 className="section-title max-w-xl text-[2.25rem] md:text-[3rem]">{brandName}</h2>
+          <Link href={`/${locale}`} className="inline-flex items-center">
+            <BrandLogo
+              alt={brandName}
+              className="h-auto w-[210px] md:w-[260px]"
+              sizes="(max-width: 767px) 210px, 260px"
+            />
+          </Link>
           <div className="text-sm leading-7 text-ink/70">
             <p>{supportEmail}</p>
             <p>{supportPhone}</p>
