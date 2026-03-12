@@ -32,10 +32,21 @@ export function formatStayDate(value: string, locale: Locale): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parseDate(value));
 }
 
+export function roundMoney(amount: number): number {
+  return Math.round((amount + Number.EPSILON) * 100) / 100;
+}
+
+export function toMinorUnits(amount: number): number {
+  return Math.round(roundMoney(amount) * 100);
+}
+
 export function formatMoney(amount: number, currency: string, locale: Locale): string {
+  const normalized = roundMoney(amount);
+  const hasCents = Math.abs(normalized % 1) > Number.EPSILON;
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
-    maximumFractionDigits: 0,
-  }).format(amount);
+    minimumFractionDigits: hasCents ? 2 : 0,
+    maximumFractionDigits: 2,
+  }).format(normalized);
 }

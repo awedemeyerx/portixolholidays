@@ -3,6 +3,7 @@ import { createBeds24Booking, isBeds24Configured } from '../beds24/client';
 import { getBookingSession, saveBookingSession, updateBookingSession } from '../cache/booking-sessions';
 import { getPropertyBySlug } from './cms';
 import { getPropertyQuoteBySlug } from './quote';
+import { toMinorUnits } from '../dates';
 import type { BookingSessionRecord, GuestDetails, Locale, SearchQuery } from '../types';
 
 function getStripeClient() {
@@ -95,7 +96,7 @@ export async function createCheckoutForBooking({
         quantity: 1,
         price_data: {
           currency: snapshotQuote.quote.currency.toLowerCase(),
-          unit_amount: snapshotQuote.quote.depositAmount * 100,
+          unit_amount: toMinorUnits(snapshotQuote.quote.depositAmount),
           product_data: {
             name: `${snapshotQuote.title} deposit`,
             description: `${query.checkIn} -> ${query.checkOut} · ${splitName(guest)}`,
@@ -143,8 +144,8 @@ export async function finalizeStripeCheckout(checkoutSession: Stripe.Checkout.Se
   if (
     !liveQuote ||
     !liveQuote.available ||
-    liveQuote.quote.totalPrice !== session.quote.quote.totalPrice ||
-    liveQuote.quote.depositAmount !== session.quote.quote.depositAmount
+    toMinorUnits(liveQuote.quote.totalPrice) !== toMinorUnits(session.quote.quote.totalPrice) ||
+    toMinorUnits(liveQuote.quote.depositAmount) !== toMinorUnits(session.quote.quote.depositAmount)
   ) {
     if (paymentIntentId) {
       await refundOnConflict(stripe, paymentIntentId);

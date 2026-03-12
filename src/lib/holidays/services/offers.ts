@@ -1,7 +1,7 @@
 import { getPayloadClient } from '@/lib/payload';
 import { fetchBeds24Offers, isBeds24Configured } from '../beds24/client';
 import { clearRemembered, remember } from '../cache/memory';
-import { diffNights } from '../dates';
+import { diffNights, roundMoney } from '../dates';
 import type { Beds24Offer, PriceBreakdown, PropertyRecord, SearchQuery } from '../types';
 
 type RawDoc = Record<string, unknown>;
@@ -165,19 +165,19 @@ export async function getBeds24OfferMap(query: SearchQuery, properties: Property
 
 export function toPriceBreakdownFromOffer(property: PropertyRecord, query: SearchQuery, offer: Beds24Offer): PriceBreakdown {
   const nights = diffNights(query.checkIn, query.checkOut);
-  const subtotal = Math.max(offer.totalPrice, 0);
-  const cleaningFee = offer.cleaningFee > 0 ? offer.cleaningFee : property.pricing.cleaningFee ?? 0;
+  const subtotal = roundMoney(Math.max(offer.totalPrice, 0));
+  const cleaningFee = roundMoney(offer.cleaningFee > 0 ? offer.cleaningFee : property.pricing.cleaningFee ?? 0);
   const taxes =
     offer.taxes > 0
-      ? offer.taxes
+      ? roundMoney(offer.taxes)
       : property.pricing.taxPercentage && property.pricing.taxPercentage > 0
-        ? Math.round((subtotal * property.pricing.taxPercentage) / 100)
+        ? roundMoney((subtotal * property.pricing.taxPercentage) / 100)
         : property.pricing.taxPersonNight && property.pricing.taxPersonNight > 0
-          ? Math.round(property.pricing.taxPersonNight * query.guests * nights)
-          : property.pricing.taxes ?? 0;
-  const totalPrice = subtotal + cleaningFee + taxes;
+          ? roundMoney(property.pricing.taxPersonNight * query.guests * nights)
+          : roundMoney(property.pricing.taxes ?? 0);
+  const totalPrice = roundMoney(subtotal + cleaningFee + taxes);
   const pricePerNight =
-    offer.pricePerNight > 0 ? Math.round(offer.pricePerNight) : nights > 0 ? Math.round(subtotal / nights) : subtotal;
+    offer.pricePerNight > 0 ? roundMoney(offer.pricePerNight) : nights > 0 ? roundMoney(subtotal / nights) : subtotal;
 
   return {
     currency: offer.currency || property.pricing.currency,
@@ -187,6 +187,6 @@ export function toPriceBreakdownFromOffer(property: PropertyRecord, query: Searc
     cleaningFee,
     taxes,
     totalPrice,
-    depositAmount: Math.round(totalPrice * property.pricing.depositRate),
+    depositAmount: roundMoney(totalPrice * property.pricing.depositRate),
   };
 }

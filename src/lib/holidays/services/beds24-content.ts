@@ -312,6 +312,52 @@ function mapLocalizedEntries(entries: unknown, fieldNames: string[]): Localized 
   };
 }
 
+function mapBookingRuleCancellationSummary(value: unknown): Localized {
+  if (!value || typeof value !== 'object') {
+    return emptyLocalized();
+  }
+
+  const record = value as RawDoc;
+  const type = maybeString(record.type).toLowerCase();
+
+  if (type === 'never') {
+    return {
+      de: 'Stornierung durch Gäste nicht möglich.',
+      en: 'Guest cancellation is not allowed.',
+      es: 'No se permite la cancelación por parte del huésped.',
+    };
+  }
+
+  return emptyLocalized();
+}
+
+function deriveCancellationSummaryFromRaw(raw: RawDoc | undefined): Localized {
+  if (!raw) {
+    return emptyLocalized();
+  }
+
+  const propertyTexts = Array.isArray(raw.texts) ? (raw.texts as RawDoc[]) : [];
+  const roomTexts = Array.isArray(raw.roomTypes)
+    ? (raw.roomTypes as RawDoc[]).flatMap((roomType) =>
+        Array.isArray(roomType.texts) ? (roomType.texts as RawDoc[]) : [],
+      )
+    : [];
+
+  const localizedPolicy = mapLocalizedEntries(
+    [...propertyTexts, ...roomTexts],
+    ['cancellationPolicy', 'propertyCancellationPolicy', 'cancelPolicy'],
+  );
+
+  if (primaryLocalizedText(localizedPolicy)) {
+    return localizedPolicy;
+  }
+
+  const bookingRules =
+    raw.bookingRules && typeof raw.bookingRules === 'object' ? (raw.bookingRules as RawDoc) : undefined;
+
+  return mapBookingRuleCancellationSummary(bookingRules?.allowGuestCancellation);
+}
+
 function extractLocationLabelFromDescription(value: string) {
   const lines = normalizeMultilineText(value).split('\n');
   for (const line of lines) {
@@ -553,6 +599,7 @@ export function mergePropertyWithBeds24Content(property: PropertyRecord, content
   if (!content) return property;
 
   const hasVerifiedText = hasVerifiedBeds24Raw(content);
+  const cancellationSummary = deriveCancellationSummaryFromRaw(content.raw);
   const verifiedHeroImage = isVerifiedPropertyImage(content.heroImage) ? content.heroImage : '';
   const verifiedGallery = verifiedGalleryUrls(content);
   const pricing = content.pricing
@@ -576,6 +623,9 @@ export function mergePropertyWithBeds24Content(property: PropertyRecord, content
     summary: hasVerifiedText ? mergeLocalizedPreferBase(property.summary, content.summary) : property.summary,
     description: hasVerifiedText ? mergeLocalizedPreferBase(property.description, content.description) : property.description,
     locationLabel: hasVerifiedText ? mergeLocalizedPreferBase(property.locationLabel, content.locationLabel) : property.locationLabel,
+    cancellationSummary: primaryLocalizedText(cancellationSummary)
+      ? mergeLocalizedPreferBase(property.cancellationSummary, cancellationSummary)
+      : property.cancellationSummary,
     seoTitle: mergeLocalizedPreferBase(property.seoTitle, content.title),
     seoDescription: hasVerifiedText
       ? mergeLocalizedPreferBase(property.seoDescription, content.summary)
@@ -615,6 +665,7 @@ function createSyntheticPropertyFromBeds24Content(content: Beds24ContentRecord):
   const titleText = content.title.de || content.title.en || content.title.es || `Property ${content.beds24PropertyId}`;
   const slug = normalizeLookupValue(titleText) || `property-${content.beds24PropertyId}`;
   const hasVerifiedText = hasVerifiedBeds24Raw(content);
+  const cancellationSummary = deriveCancellationSummaryFromRaw(content.raw);
   const summaryText = hasVerifiedText ? content.summary.de || content.summary.en || content.summary.es : '';
   const descriptionText = hasVerifiedText ? content.description.de || content.description.en || content.description.es : '';
   const locationText = hasVerifiedText ? content.locationLabel.de || content.locationLabel.en || content.locationLabel.es : '';
@@ -650,7 +701,9 @@ function createSyntheticPropertyFromBeds24Content(content: Beds24ContentRecord):
       depositRate: 0.3,
       currency: content.pricing?.currency ?? 'EUR',
     },
-    cancellationSummary: emptyLocalized(),
+    cancellationSummary: primaryLocalizedText(cancellationSummary)
+      ? cancellationSummary
+      : emptyLocalized(),
     seoTitle: localizeWithFallback(content.title, titleText),
     seoDescription: hasVerifiedText ? localizeWithFallback(content.summary, summaryText) : emptyLocalized(),
     blockedRanges: [],

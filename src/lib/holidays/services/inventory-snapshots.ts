@@ -1,6 +1,6 @@
 import { fetchBeds24Calendar, isBeds24Configured } from '../beds24/client';
 import { clearRemembered, remember } from '../cache/memory';
-import { diffNights, enumerateNights } from '../dates';
+import { diffNights, enumerateNights, roundMoney } from '../dates';
 import type { CalendarDay, CalendarSnapshot, PriceBreakdown, PropertyRecord, SearchQuery } from '../types';
 import { getPayloadClient } from '@/lib/payload';
 import { getProperties } from './cms';
@@ -260,16 +260,16 @@ export function quoteFromInventorySnapshot(property: PropertyRecord, query: Sear
     nightlyPrices.push(day.price ?? property.pricing.nightly);
   }
 
-  const subtotal = nightlyPrices.reduce((sum, price) => sum + price, 0);
-  const averageNightlyPrice = Math.round(subtotal / Math.max(nightlyPrices.length, 1));
-  const cleaningFee = property.pricing.cleaningFee;
+  const subtotal = roundMoney(nightlyPrices.reduce((sum, price) => sum + price, 0));
+  const averageNightlyPrice = roundMoney(subtotal / Math.max(nightlyPrices.length, 1));
+  const cleaningFee = roundMoney(property.pricing.cleaningFee);
   const taxes =
     property.pricing.taxPercentage && property.pricing.taxPercentage > 0
-      ? Math.round((subtotal * property.pricing.taxPercentage) / 100)
+      ? roundMoney((subtotal * property.pricing.taxPercentage) / 100)
       : property.pricing.taxPersonNight && property.pricing.taxPersonNight > 0
-        ? Math.round(property.pricing.taxPersonNight * query.guests * nights)
-        : property.pricing.taxes;
-  const totalPrice = subtotal + cleaningFee + taxes;
+        ? roundMoney(property.pricing.taxPersonNight * query.guests * nights)
+        : roundMoney(property.pricing.taxes);
+  const totalPrice = roundMoney(subtotal + cleaningFee + taxes);
 
   const quote: PriceBreakdown = {
     currency: property.pricing.currency,
@@ -279,7 +279,7 @@ export function quoteFromInventorySnapshot(property: PropertyRecord, query: Sear
     cleaningFee,
     taxes,
     totalPrice,
-    depositAmount: Math.round(totalPrice * property.pricing.depositRate),
+    depositAmount: roundMoney(totalPrice * property.pricing.depositRate),
   };
 
   return {

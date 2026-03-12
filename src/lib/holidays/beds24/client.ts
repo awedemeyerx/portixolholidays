@@ -1,5 +1,5 @@
 import type { Beds24Offer, BookingSessionRecord, CalendarSnapshot, PropertyRecord, SearchQuery } from '../types';
-import { addDays, diffNights, enumerateNights, toDateKey } from '../dates';
+import { addDays, diffNights, enumerateNights, roundMoney, toDateKey } from '../dates';
 
 type RawDoc = Record<string, unknown>;
 
@@ -442,15 +442,15 @@ export async function createBeds24Booking(session: BookingSessionRecord) {
 
 export function fallbackOffer(property: PropertyRecord, query: SearchQuery): Beds24Offer {
   const nights = diffNights(query.checkIn, query.checkOut);
-  const nightly = property.pricing.nightly + (query.guests > 4 ? 20 : 0);
-  const subtotal = nightly * nights;
+  const nightly = roundMoney(property.pricing.nightly + (query.guests > 4 ? 20 : 0));
+  const subtotal = roundMoney(nightly * nights);
   return {
     roomId: property.beds24RoomId,
     available: true,
     pricePerNight: nightly,
-    cleaningFee: property.pricing.cleaningFee,
-    taxes: property.pricing.taxes,
-    totalPrice: subtotal + property.pricing.cleaningFee + property.pricing.taxes,
+    cleaningFee: roundMoney(property.pricing.cleaningFee),
+    taxes: roundMoney(property.pricing.taxes),
+    totalPrice: subtotal,
     minimumStay: property.pricing.minStay,
     currency: property.pricing.currency,
   };
