@@ -6,10 +6,20 @@ import { getPropertyQuoteBySlug } from './quote';
 import { toMinorUnits } from '../dates';
 import type { BookingSessionRecord, GuestDetails, Locale, SearchQuery } from '../types';
 
+type CheckoutStartResult = {
+  id: string;
+  url: string;
+};
+
 function getStripeClient() {
   const key = process.env.STRIPE_SECRET_KEY?.trim();
   if (!key) return null;
   return new Stripe(key, { apiVersion: '2025-02-24.acacia' });
+}
+
+function isDirectBookingMode() {
+  const raw = process.env.BOOKING_DIRECT_MODE ?? process.env.NEXT_PUBLIC_BOOKING_DIRECT_MODE ?? '';
+  return ['1', 'true', 'yes', 'on'].includes(raw.trim().toLowerCase());
 }
 
 function baseUrl() {
@@ -24,6 +34,66 @@ function splitName(guest: GuestDetails) {
   return `${guest.firstName} ${guest.lastName}`.trim();
 }
 
+function buildSuccessUrl({
+  locale,
+  slug,
+  query,
+  booking,
+  extras,
+}: {
+  locale: Locale;
+  slug: string;
+  query: SearchQuery;
+  booking: 'success' | 'confirmed' | 'cancelled';
+  extras?: Record<string, string>;
+}) {
+  const params = new URLSearchParams({
+    checkIn: query.checkIn,
+    checkOut: query.checkOut,
+    guests: String(query.guests),
+    booking,
+    ...extras,
+  });
+
+  return `${baseUrl()}/${locale}/properties/${slug}?${params.toString()}`;
+}
+
+function buildBookingSession({
+  id,
+  locale,
+  slug,
+  query,
+  guest,
+  property,
+  quote,
+  status,
+}: {
+  id: string;
+  locale: Locale;
+  slug: string;
+  query: SearchQuery;
+  guest: GuestDetails;
+  property: NonNullable<Awaited<ReturnType<typeof getPropertyBySlug>>>;
+  quote: NonNullable<Awaited<ReturnType<typeof getPropertyQuoteBySlug>>>;
+  status: BookingSessionRecord['status'];
+}): BookingSessionRecord {
+  return {
+    id,
+    locale,
+    propertyId: quote.propertyId,
+    propertySlug: quote.slug,
+    beds24PropertyId: property.beds24PropertyId,
+    beds24RoomId: property.beds24RoomId,
+    query,
+    guest,
+    quote,
+    status,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+  };
+}
+
 export async function createCheckoutForBooking({
   slug,
   locale,
@@ -34,12 +104,7 @@ export async function createCheckoutForBooking({
   locale: Locale;
   query: SearchQuery;
   guest: GuestDetails;
-}) {
-  const stripe = getStripeClient();
-  if (!stripe) {
-    throw new Error('Stripe is not configured.');
-  }
-
+}): Promise<CheckoutStartResult> {
   const snapshotQuote = await getPropertyQuoteBySlug(slug, query);
   if (!snapshotQuote || !snapshotQuote.available) {
     throw new Error('This property is no longer available for the selected dates.');
@@ -50,38 +115,78 @@ export async function createCheckoutForBooking({
   }
 
   const id = sessionId();
-  const session: BookingSessionRecord = {
+  const directMode = isDirectBookingMode();
+  const session = buildBookingSession({
     id,
     locale,
-    propertyId: snapshotQuote.propertyId,
-    propertySlug: snapshotQuote.slug,
-    beds24PropertyId: property.beds24PropertyId,
-    beds24RoomId: property.beds24RoomId,
+    slug,
     query,
     guest,
+    property,
     quote: snapshotQuote,
-    status: 'awaiting_payment',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-  };
+    status: directMode ? 'booking_confirmed' : 'awaiting_payment',
+  });
 
   await saveBookingSession(session);
 
-  const successQuery = new URLSearchParams({
-    checkIn: query.checkIn,
-    checkOut: query.checkOut,
-    guests: String(query.guests),
-    booking: 'success',
-    session_id: '{CHECKOUT_SESSION_ID}',
-  });
+  if (directMode) {
+    if (!isBeds24Configured()) {
+      throw new Error('Beds24 is not configured.');
+    }
 
-  const cancelQuery = new URLSearchParams({
-    checkIn: query.checkIn,
-    checkOut: query.checkOut,
-    guests: String(query.guests),
-    booking: 'cancelled',
-  });
+    const liveQuote = await getPropertyQuoteBySlug(slug, query, { forceLive: true });
+    if (!liveQuote || !liveQuote.available) {
+      await updateBookingSession(id, (current) => ({
+        ...current,
+        updatedAt: new Date().toISOString(),
+        status: 'conflict_after_payment',
+        lastError: 'Beds24 availability or pricing changed before booking.',
+      }));
+      throw new Error('This property is no longer available for the selected dates.');
+    }
+
+    let beds24BookingId = session.id;
+    try {
+      beds24BookingId = await createBeds24Booking({
+        ...session,
+        quote: liveQuote,
+      });
+    } catch (error) {
+      await updateBookingSession(session.id, (current) => ({
+        ...current,
+        updatedAt: new Date().toISOString(),
+        status: 'external_booking_failed',
+        lastError: error instanceof Error ? error.message : 'Beds24 booking failed.',
+      }));
+      throw error;
+    }
+
+    await updateBookingSession(id, (current) => ({
+      ...current,
+      updatedAt: new Date().toISOString(),
+      status: 'booking_confirmed',
+      beds24BookingId,
+      quote: liveQuote,
+    }));
+
+    return {
+      id,
+      url: buildSuccessUrl({
+        locale,
+        slug: liveQuote.slug,
+        query,
+        booking: 'confirmed',
+        extras: {
+          booking_id: beds24BookingId,
+        },
+      }),
+    };
+  }
+
+  const stripe = getStripeClient();
+  if (!stripe) {
+    throw new Error('Stripe is not configured.');
+  }
 
   const checkoutSession = await stripe.checkout.sessions.create({
     mode: 'payment',
@@ -104,8 +209,19 @@ export async function createCheckoutForBooking({
         },
       },
     ],
-    success_url: `${baseUrl()}/${locale}/properties/${snapshotQuote.slug}?${successQuery.toString()}`,
-    cancel_url: `${baseUrl()}/${locale}/properties/${snapshotQuote.slug}?${cancelQuery.toString()}`,
+    success_url: buildSuccessUrl({
+      locale,
+      slug: snapshotQuote.slug,
+      query,
+      booking: 'success',
+      extras: { session_id: '{CHECKOUT_SESSION_ID}' },
+    }),
+    cancel_url: buildSuccessUrl({
+      locale,
+      slug: snapshotQuote.slug,
+      query,
+      booking: 'cancelled',
+    }),
   });
 
   await updateBookingSession(id, (current) => ({
@@ -114,7 +230,10 @@ export async function createCheckoutForBooking({
     stripeSessionId: checkoutSession.id,
   }));
 
-  return checkoutSession;
+  return {
+    id: checkoutSession.id,
+    url: checkoutSession.url ?? buildSuccessUrl({ locale, slug: snapshotQuote.slug, query, booking: 'cancelled' }),
+  };
 }
 
 async function refundOnConflict(stripe: Stripe, paymentIntentId: string) {

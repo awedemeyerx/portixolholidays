@@ -161,6 +161,11 @@ export default async function PropertyPage({ params, searchParams }: Props) {
               {messages.Property.success}
             </div>
           ) : null}
+          {bookingState === 'confirmed' ? (
+            <div className="rounded-[1.5rem] bg-sea/10 px-5 py-4 text-sm text-sea">
+              {messages.Property.confirmed}
+            </div>
+          ) : null}
           {bookingState === 'cancelled' ? (
             <div className="rounded-[1.5rem] bg-terracotta/10 px-5 py-4 text-sm text-terracotta">
               {messages.Property.cancelled}

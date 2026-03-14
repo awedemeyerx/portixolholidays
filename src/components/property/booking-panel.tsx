@@ -30,6 +30,7 @@ type Props = {
 export function BookingPanel({ locale, slug, selection, query, quote, calendar }: Props) {
   const t = useTranslations('Property');
   const searchT = useTranslations('Search');
+  const directBookingMode = process.env.NEXT_PUBLIC_BOOKING_DIRECT_MODE === 'true';
   const router = useRouter();
   const pathname = usePathname();
   const [, startTransition] = useTransition();
@@ -360,7 +361,7 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
             disabled={loading}
             className="w-full rounded-full bg-ink px-5 py-4 text-sm font-medium text-foam transition hover:bg-sea disabled:opacity-60"
           >
-            {loading ? t('processing') : t('payDeposit')}
+            {loading ? (directBookingMode ? t('processingBooking') : t('processing')) : directBookingMode ? t('confirmBooking') : t('payDeposit')}
           </button>
         </form>
       ) : null}
