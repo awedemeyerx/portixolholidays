@@ -12,14 +12,14 @@ export const fallbackSiteSettings: SiteSettingsRecord = {
     es: 'Casas vacacionales junto al mar',
   },
   heroTitle: {
-    de: 'Mallorca-Aufenthalte, die sich klar und leicht buchen lassen.',
-    en: 'Mallorca stays with a booking flow that finally feels clear.',
-    es: 'Estancias en Mallorca con una reserva clara y rápida.',
+    de: 'Sichere Mallorca Holidays in außergewöhnlicher Lage buchen.',
+    en: 'Book secure Mallorca holidays in exceptional locations.',
+    es: 'Reserva vacaciones seguras en Mallorca en ubicaciones excepcionales.',
   },
   heroSubtitle: {
-    de: 'Wähle deinen Zeitraum, sieh sofort freie Häuser und buche direkt mit eigener Buchungsmaschine statt Beds24-Widgets.',
-    en: 'Pick your dates, see available homes instantly and book through a custom journey instead of Beds24 widgets.',
-    es: 'Elige tus fechas, ve las casas disponibles al instante y reserva con un flujo propio en lugar de widgets de Beds24.',
+    de: 'Entdecke handverlesene Ferienhäuser in Portixol, El Molinar und Port d’Andratx, prüfe freie Termine sofort und reserviere deinen Traumurlaub auf Mallorca komfortabel online.',
+    en: 'Discover handpicked holiday homes in Portixol, El Molinar and Port d\'Andratx, check available dates instantly and reserve your dream Mallorca stay online with confidence.',
+    es: 'Descubre casas vacacionales seleccionadas en Portixol, El Molinar y Port d\'Andratx, consulta fechas disponibles al instante y reserva tu estancia ideal en Mallorca con total comodidad.',
   },
   heroPrimaryCta: {
     de: 'Verfügbare Häuser finden',
@@ -32,9 +32,9 @@ export const fallbackSiteSettings: SiteSettingsRecord = {
     es: 'Ver alojamientos',
   },
   searchHint: {
-    de: 'Anreise, Abreise und Gäste wählen. Darunter erscheinen nur wirklich freie Objekte.',
-    en: 'Choose arrival, departure and guests. Only actually available homes appear below.',
-    es: 'Elige llegada, salida y huéspedes. Debajo solo aparecen alojamientos realmente disponibles.',
+    de: 'Wähle Anreise, Abreise und Gästezahl. Darunter erscheinen passende Ferienhäuser für deinen Mallorca-Urlaub.',
+    en: 'Choose arrival, departure and guests. Suitable holiday homes for your Mallorca escape appear below.',
+    es: 'Elige llegada, salida y huéspedes. Debajo verás alojamientos ideales para tus vacaciones en Mallorca.',
   },
   searchEmptyTitle: {
     de: 'Bitte anderes Zeitfenster wählen',
@@ -87,9 +87,9 @@ export const fallbackFaqs: FAQEntry[] = [
       es: '¿Los precios y la disponibilidad son en tiempo real?',
     },
     answer: {
-      de: 'Die Website arbeitet mit einem schnellen JSON-Cache. Vor dem finalen Checkout werden Preis und Verfügbarkeit serverseitig nochmals direkt bei Beds24 geprüft.',
-      en: 'The website uses a fast JSON cache. Before final checkout, price and availability are rechecked server-side against Beds24.',
-      es: 'La web usa una caché JSON rápida. Antes del checkout final, precio y disponibilidad se validan otra vez contra Beds24 desde el servidor.',
+      de: 'Preise und Verfügbarkeiten werden laufend aktualisiert. Vor dem Abschluss prüfen wir deine Auswahl noch einmal, damit deine Buchung verlässlich und aktuell bleibt.',
+      en: 'Prices and availability are updated continuously. Before completion, we verify your selection once more to keep your booking reliable and up to date.',
+      es: 'Los precios y la disponibilidad se actualizan de forma continua. Antes de finalizar, volvemos a comprobar tu selección para que la reserva siga siendo fiable y actual.',
     },
   },
   {

@@ -4,7 +4,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Portixol Holidays',
-  description: 'Holiday rentals in Mallorca with a custom booking engine powered by Beds24 data.',
+  description: 'Secure and comfortable Mallorca holiday rentals in Portixol, El Molinar and Port d’Andratx.',
   icons: {
     icon: '/portixol-icon.png',
     shortcut: '/portixol-icon.png',

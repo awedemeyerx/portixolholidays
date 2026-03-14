@@ -412,18 +412,39 @@ export async function fetchBeds24Calendar(property: PropertyRecord): Promise<Cal
 }
 
 export async function createBeds24Booking(session: BookingSessionRecord) {
+  const subtotalExcludingTax = roundMoney(Math.max(session.quote.quote.totalPrice - session.quote.quote.taxes, 0));
+  const rateDescription = [
+    `${session.quote.quote.nights} nights`,
+    `Accommodation ${subtotalExcludingTax.toFixed(2)} ${session.quote.quote.currency}`,
+    `Deposit ${roundMoney(session.quote.quote.depositAmount).toFixed(2)} ${session.quote.quote.currency}`,
+  ];
+
+  if (session.quote.quote.cleaningFee > 0) {
+    rateDescription.push(`Cleaning ${roundMoney(session.quote.quote.cleaningFee).toFixed(2)} ${session.quote.quote.currency}`);
+  }
+
+  if (session.quote.quote.taxes > 0) {
+    rateDescription.push(`Mallorca tourist tax ${roundMoney(session.quote.quote.taxes).toFixed(2)} ${session.quote.quote.currency}`);
+  }
+
   const body = [
     {
       propertyId: session.beds24PropertyId,
       roomId: session.beds24RoomId,
       apiReference: session.id,
+      reference: session.id,
       arrival: session.query.checkIn,
       departure: session.query.checkOut,
       numAdult: session.query.guests,
       firstName: session.guest.firstName,
       lastName: session.guest.lastName,
       email: session.guest.email,
+      phone: session.guest.phone,
       mobile: session.guest.phone,
+      price: subtotalExcludingTax,
+      deposit: roundMoney(session.quote.quote.depositAmount),
+      tax: roundMoney(session.quote.quote.taxes),
+      rateDescription: rateDescription.join(' · '),
       comments: session.guest.notes || '',
       referer: 'Portixol Holidays',
       status: 'confirmed',
@@ -436,7 +457,12 @@ export async function createBeds24Booking(session: BookingSessionRecord) {
   });
 
   const entries = flattenEntries(raw);
-  const bookingId = entries.find((entry) => entry.id || entry.bookingId || entry.new)?.id;
+  const nestedNewEntry = entries.find((entry) => typeof entry.new === 'object' && entry.new && 'id' in entry.new);
+  const nestedNewId =
+    nestedNewEntry && typeof nestedNewEntry.new === 'object' && nestedNewEntry.new
+      ? (nestedNewEntry.new as RawDoc).id
+      : undefined;
+  const bookingId = entries.find((entry) => entry.id || entry.bookingId)?.id ?? nestedNewId;
   return String(bookingId ?? session.id);
 }
 

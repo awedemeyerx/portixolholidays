@@ -7,6 +7,9 @@ import { formatMoney } from '@/lib/holidays/dates';
 import { StaySearchForm } from '@/components/search/stay-search-form';
 import type { CalendarSnapshot, Locale, PropertyQuote } from '@/lib/holidays/types';
 
+type BookingField = 'firstName' | 'lastName' | 'email' | 'phone' | 'acceptedTerms' | 'acceptedPrivacy';
+type BookingFieldErrors = Partial<Record<BookingField, string>>;
+
 type Props = {
   locale: Locale;
   slug: string;
@@ -37,6 +40,7 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
   const [isFetchingQuote, setIsFetchingQuote] = useState(false);
   const [activeQuote, setActiveQuote] = useState<PropertyQuote | null>(quote);
   const [activeQuery, setActiveQuery] = useState(query);
+  const [fieldErrors, setFieldErrors] = useState<BookingFieldErrors>({});
   const [bookingState, setBookingState] = useState({
     firstName: '',
     lastName: '',
@@ -58,6 +62,21 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
   const hasCompleteSelection = Boolean(
     (selection?.checkIn && selection?.checkOut) || (activeQuery?.checkIn && activeQuery?.checkOut),
   );
+
+  function clearFieldError(field: BookingField) {
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
+
+  function fieldClass(field: BookingField) {
+    return `soft-ring rounded-2xl border-0 bg-white px-4 py-3 ${
+      fieldErrors[field] ? 'ring-1 ring-terracotta/40' : ''
+    }`;
+  }
 
   function updateStay(nextStay: { checkIn: string; checkOut: string; guests: number; locations: string[] }) {
     const params = new URLSearchParams();
@@ -125,6 +144,7 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
     if (!activeQuery || !activeQuote) return;
     setLoading(true);
     setError(null);
+    setFieldErrors({});
 
     try {
       const response = await fetch('/api/checkout/session', {
@@ -142,6 +162,9 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
 
       const payload = await response.json();
       if (!response.ok) {
+        if (payload.fieldErrors && typeof payload.fieldErrors === 'object') {
+          setFieldErrors(payload.fieldErrors as BookingFieldErrors);
+        }
         throw new Error(String(payload.error ?? 'Checkout session failed'));
       }
 
@@ -231,35 +254,64 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
           <section className="space-y-4">
             <h3 className="label-caps text-[11px] text-sea">{t('guestDetails')}</h3>
             <div className="grid gap-4 md:grid-cols-2">
-              <input
-                placeholder={t('firstName')}
-                className="soft-ring rounded-2xl border-0 bg-white px-4 py-3"
-                value={bookingState.firstName}
-                onChange={(event) => setBookingState((current) => ({ ...current, firstName: event.target.value }))}
-                required
-              />
-              <input
-                placeholder={t('lastName')}
-                className="soft-ring rounded-2xl border-0 bg-white px-4 py-3"
-                value={bookingState.lastName}
-                onChange={(event) => setBookingState((current) => ({ ...current, lastName: event.target.value }))}
-                required
-              />
-              <input
-                type="email"
-                placeholder={t('email')}
-                className="soft-ring rounded-2xl border-0 bg-white px-4 py-3"
-                value={bookingState.email}
-                onChange={(event) => setBookingState((current) => ({ ...current, email: event.target.value }))}
-                required
-              />
-              <input
-                placeholder={t('phone')}
-                className="soft-ring rounded-2xl border-0 bg-white px-4 py-3"
-                value={bookingState.phone}
-                onChange={(event) => setBookingState((current) => ({ ...current, phone: event.target.value }))}
-                required
-              />
+              <div className="space-y-2">
+                <input
+                  placeholder={t('firstName')}
+                  className={fieldClass('firstName')}
+                  value={bookingState.firstName}
+                  onChange={(event) => {
+                    clearFieldError('firstName');
+                    setError(null);
+                    setBookingState((current) => ({ ...current, firstName: event.target.value }));
+                  }}
+                  required
+                />
+                {fieldErrors.firstName ? <p className="text-sm text-terracotta">{fieldErrors.firstName}</p> : null}
+              </div>
+              <div className="space-y-2">
+                <input
+                  placeholder={t('lastName')}
+                  className={fieldClass('lastName')}
+                  value={bookingState.lastName}
+                  onChange={(event) => {
+                    clearFieldError('lastName');
+                    setError(null);
+                    setBookingState((current) => ({ ...current, lastName: event.target.value }));
+                  }}
+                  required
+                />
+                {fieldErrors.lastName ? <p className="text-sm text-terracotta">{fieldErrors.lastName}</p> : null}
+              </div>
+              <div className="space-y-2">
+                <input
+                  type="email"
+                  placeholder={t('email')}
+                  className={fieldClass('email')}
+                  value={bookingState.email}
+                  onChange={(event) => {
+                    clearFieldError('email');
+                    setError(null);
+                    setBookingState((current) => ({ ...current, email: event.target.value }));
+                  }}
+                  required
+                />
+                {fieldErrors.email ? <p className="text-sm text-terracotta">{fieldErrors.email}</p> : null}
+              </div>
+              <div className="space-y-2">
+                <input
+                  type="tel"
+                  placeholder={t('phone')}
+                  className={fieldClass('phone')}
+                  value={bookingState.phone}
+                  onChange={(event) => {
+                    clearFieldError('phone');
+                    setError(null);
+                    setBookingState((current) => ({ ...current, phone: event.target.value }));
+                  }}
+                  required
+                />
+                {fieldErrors.phone ? <p className="text-sm text-terracotta">{fieldErrors.phone}</p> : null}
+              </div>
             </div>
             <textarea
               placeholder={t('notes')}
@@ -275,20 +327,30 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
               <input
                 type="checkbox"
                 checked={bookingState.acceptedTerms}
-                onChange={(event) => setBookingState((current) => ({ ...current, acceptedTerms: event.target.checked }))}
+                onChange={(event) => {
+                  clearFieldError('acceptedTerms');
+                  setError(null);
+                  setBookingState((current) => ({ ...current, acceptedTerms: event.target.checked }));
+                }}
                 required
               />
               <span>{t('acceptTerms')}</span>
             </label>
+            {fieldErrors.acceptedTerms ? <p className="text-sm text-terracotta">{fieldErrors.acceptedTerms}</p> : null}
             <label className="flex items-start gap-3 text-sm text-ink/72">
               <input
                 type="checkbox"
                 checked={bookingState.acceptedPrivacy}
-                onChange={(event) => setBookingState((current) => ({ ...current, acceptedPrivacy: event.target.checked }))}
+                onChange={(event) => {
+                  clearFieldError('acceptedPrivacy');
+                  setError(null);
+                  setBookingState((current) => ({ ...current, acceptedPrivacy: event.target.checked }));
+                }}
                 required
               />
               <span>{t('acceptPrivacy')}</span>
             </label>
+            {fieldErrors.acceptedPrivacy ? <p className="text-sm text-terracotta">{fieldErrors.acceptedPrivacy}</p> : null}
           </section>
 
           {error ? <p className="rounded-2xl bg-terracotta/10 px-4 py-3 text-sm text-terracotta">{error}</p> : null}
