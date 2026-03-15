@@ -426,6 +426,7 @@ export async function createBeds24Booking(session: BookingSessionRecord) {
       cleaning: 'Endreinigung',
       tourismTax: 'Tourismusabgabe Mallorca',
       deposit: 'Anzahlung',
+      payment: 'Stripe-Zahlung',
       stayLabel: `${session.quote.title} · ${session.quote.locationLabel}`,
       cleaningDescription: `Endreinigung ${session.quote.title}`,
     },
@@ -435,6 +436,7 @@ export async function createBeds24Booking(session: BookingSessionRecord) {
       cleaning: 'Final cleaning',
       tourismTax: 'Mallorca tourist tax',
       deposit: 'Deposit',
+      payment: 'Stripe payment',
       stayLabel: `${session.quote.title} · ${session.quote.locationLabel}`,
       cleaningDescription: `Final cleaning ${session.quote.title}`,
     },
@@ -444,6 +446,7 @@ export async function createBeds24Booking(session: BookingSessionRecord) {
       cleaning: 'Limpieza final',
       tourismTax: 'Tasa turística de Mallorca',
       deposit: 'Depósito',
+      payment: 'Pago por Stripe',
       stayLabel: `${session.quote.title} · ${session.quote.locationLabel}`,
       cleaningDescription: `Limpieza final ${session.quote.title}`,
     },
@@ -455,6 +458,7 @@ export async function createBeds24Booking(session: BookingSessionRecord) {
       cleaning: string;
       tourismTax: string;
       deposit: string;
+      payment: string;
       stayLabel: string;
       cleaningDescription: string;
     }
@@ -518,6 +522,18 @@ export async function createBeds24Booking(session: BookingSessionRecord) {
             status: 'TourismTax',
             qty: 1,
             amount: tourismTaxAmount,
+            vatRate: 0,
+          },
+        ]
+      : []),
+    ...((session.stripePaymentIntentId || session.stripeSessionId) && depositAmount > 0
+      ? [
+          {
+            type: 'payment',
+            description: `${localized.payment} · ${session.guest.firstName} ${session.guest.lastName}`.trim(),
+            status: 'Paid',
+            qty: 1,
+            amount: depositAmount,
             vatRate: 0,
           },
         ]

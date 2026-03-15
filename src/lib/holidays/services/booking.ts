@@ -302,6 +302,7 @@ export async function finalizeStripeCheckout(checkoutSession: Stripe.Checkout.Se
       beds24BookingId = await createBeds24Booking({
         ...session,
         quote: liveQuote,
+        stripePaymentIntentId: paymentIntentId,
       });
     } catch (error) {
       await updateBookingSession(session.id, (current) => ({
