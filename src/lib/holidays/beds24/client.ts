@@ -1,5 +1,5 @@
-import type { Beds24Offer, BookingSessionRecord, CalendarSnapshot, PropertyRecord, SearchQuery } from '../types';
-import { addDays, diffNights, enumerateNights, roundMoney, toDateKey } from '../dates';
+import type { Beds24Offer, BookingSessionRecord, CalendarSnapshot, Locale, PropertyRecord, SearchQuery } from '../types';
+import { addDays, diffNights, enumerateNights, formatMoney, parseDate, roundMoney, toDateKey } from '../dates';
 
 type RawDoc = Record<string, unknown>;
 
@@ -412,20 +412,117 @@ export async function fetchBeds24Calendar(property: PropertyRecord): Promise<Cal
 }
 
 export async function createBeds24Booking(session: BookingSessionRecord) {
-  const subtotalExcludingTax = roundMoney(Math.max(session.quote.quote.totalPrice - session.quote.quote.taxes, 0));
+  const quote = session.quote.quote;
+  const accommodationAmount = roundMoney(Math.max(quote.subtotal, 0));
+  const cleaningAmount = roundMoney(Math.max(quote.cleaningFee, 0));
+  const tourismTaxAmount = roundMoney(Math.max(quote.taxes, 0));
+  const subtotalExcludingTax = roundMoney(accommodationAmount + cleaningAmount);
+  const depositAmount = roundMoney(quote.depositAmount);
+
+  const copy = {
+    de: {
+      nights: 'Nächte',
+      accommodation: 'Unterkunft',
+      cleaning: 'Endreinigung',
+      tourismTax: 'Tourismusabgabe Mallorca',
+      deposit: 'Anzahlung',
+      stayLabel: `${session.quote.title} · ${session.quote.locationLabel}`,
+      cleaningDescription: `Endreinigung ${session.quote.title}`,
+    },
+    en: {
+      nights: 'nights',
+      accommodation: 'Accommodation',
+      cleaning: 'Final cleaning',
+      tourismTax: 'Mallorca tourist tax',
+      deposit: 'Deposit',
+      stayLabel: `${session.quote.title} · ${session.quote.locationLabel}`,
+      cleaningDescription: `Final cleaning ${session.quote.title}`,
+    },
+    es: {
+      nights: 'noches',
+      accommodation: 'Alojamiento',
+      cleaning: 'Limpieza final',
+      tourismTax: 'Tasa turística de Mallorca',
+      deposit: 'Depósito',
+      stayLabel: `${session.quote.title} · ${session.quote.locationLabel}`,
+      cleaningDescription: `Limpieza final ${session.quote.title}`,
+    },
+  } satisfies Record<
+    Locale,
+    {
+      nights: string;
+      accommodation: string;
+      cleaning: string;
+      tourismTax: string;
+      deposit: string;
+      stayLabel: string;
+      cleaningDescription: string;
+    }
+  >;
+
+  const localized = copy[session.locale];
+  const formattedArrival = new Intl.DateTimeFormat(session.locale, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(parseDate(session.query.checkIn));
+  const formattedDeparture = new Intl.DateTimeFormat(session.locale, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(parseDate(session.query.checkOut));
+
   const rateDescription = [
-    `${session.quote.quote.nights} nights`,
-    `Accommodation ${subtotalExcludingTax.toFixed(2)} ${session.quote.quote.currency}`,
-    `Deposit ${roundMoney(session.quote.quote.depositAmount).toFixed(2)} ${session.quote.quote.currency}`,
+    `${quote.nights} ${localized.nights}`,
+    `${localized.accommodation} ${formatMoney(accommodationAmount, quote.currency, session.locale)}`,
   ];
 
-  if (session.quote.quote.cleaningFee > 0) {
-    rateDescription.push(`Cleaning ${roundMoney(session.quote.quote.cleaningFee).toFixed(2)} ${session.quote.quote.currency}`);
+  if (cleaningAmount > 0) {
+    rateDescription.push(`${localized.cleaning} ${formatMoney(cleaningAmount, quote.currency, session.locale)}`);
   }
 
-  if (session.quote.quote.taxes > 0) {
-    rateDescription.push(`Mallorca tourist tax ${roundMoney(session.quote.quote.taxes).toFixed(2)} ${session.quote.quote.currency}`);
+  if (tourismTaxAmount > 0) {
+    rateDescription.push(`${localized.tourismTax} ${formatMoney(tourismTaxAmount, quote.currency, session.locale)}`);
   }
+
+  rateDescription.push(`${localized.deposit} ${formatMoney(depositAmount, quote.currency, session.locale)}`);
+
+  const invoiceItems = [
+    {
+      type: 'charge',
+      description: `${localized.stayLabel} · ${formattedArrival} - ${formattedDeparture}`,
+      status: 'Accommodation',
+      qty: 1,
+      amount: accommodationAmount,
+      vatRate: 0,
+    },
+    ...(cleaningAmount > 0
+      ? [
+          {
+            type: 'charge',
+            description: localized.cleaningDescription,
+            status: 'Cleaning',
+            qty: 1,
+            amount: cleaningAmount,
+            vatRate: 0,
+          },
+        ]
+      : []),
+    ...(tourismTaxAmount > 0
+      ? [
+          {
+            type: 'charge',
+            description: localized.tourismTax,
+            status: 'TourismTax',
+            qty: 1,
+            amount: tourismTaxAmount,
+            vatRate: 0,
+          },
+        ]
+      : []),
+  ];
 
   const body = [
     {
@@ -436,15 +533,17 @@ export async function createBeds24Booking(session: BookingSessionRecord) {
       arrival: session.query.checkIn,
       departure: session.query.checkOut,
       numAdult: session.query.guests,
+      lang: session.locale,
       firstName: session.guest.firstName,
       lastName: session.guest.lastName,
       email: session.guest.email,
       phone: session.guest.phone,
       mobile: session.guest.phone,
       price: subtotalExcludingTax,
-      deposit: roundMoney(session.quote.quote.depositAmount),
-      tax: roundMoney(session.quote.quote.taxes),
+      deposit: depositAmount,
+      tax: 0,
       rateDescription: rateDescription.join(' · '),
+      invoiceItems,
       comments: session.guest.notes || '',
       referer: 'Portixol Holidays',
       status: 'confirmed',
