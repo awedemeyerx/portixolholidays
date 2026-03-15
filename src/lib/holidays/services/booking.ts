@@ -22,7 +22,7 @@ function isDirectBookingMode() {
   return ['1', 'true', 'yes', 'on'].includes(raw.trim().toLowerCase());
 }
 
-function baseUrl() {
+function defaultBaseUrl() {
   return process.env.NEXT_PUBLIC_BASE_URL?.trim() || 'http://localhost:3000';
 }
 
@@ -35,12 +35,14 @@ function splitName(guest: GuestDetails) {
 }
 
 function buildSuccessUrl({
+  baseUrl,
   locale,
   slug,
   query,
   booking,
   extras,
 }: {
+  baseUrl: string;
   locale: Locale;
   slug: string;
   query: SearchQuery;
@@ -55,7 +57,7 @@ function buildSuccessUrl({
     ...extras,
   });
 
-  return `${baseUrl()}/${locale}/properties/${slug}?${params.toString()}`;
+  return `${baseUrl}/${locale}/properties/${slug}?${params.toString()}`;
 }
 
 function buildBookingSession({
@@ -95,11 +97,13 @@ function buildBookingSession({
 }
 
 export async function createCheckoutForBooking({
+  returnBaseUrl,
   slug,
   locale,
   query,
   guest,
 }: {
+  returnBaseUrl?: string;
   slug: string;
   locale: Locale;
   query: SearchQuery;
@@ -116,6 +120,7 @@ export async function createCheckoutForBooking({
 
   const id = sessionId();
   const directMode = isDirectBookingMode();
+  const effectiveBaseUrl = returnBaseUrl?.trim() || defaultBaseUrl();
   const session = buildBookingSession({
     id,
     locale,
@@ -172,6 +177,7 @@ export async function createCheckoutForBooking({
     return {
       id,
       url: buildSuccessUrl({
+        baseUrl: effectiveBaseUrl,
         locale,
         slug: liveQuote.slug,
         query,
@@ -210,6 +216,7 @@ export async function createCheckoutForBooking({
       },
     ],
     success_url: buildSuccessUrl({
+      baseUrl: effectiveBaseUrl,
       locale,
       slug: snapshotQuote.slug,
       query,
@@ -217,6 +224,7 @@ export async function createCheckoutForBooking({
       extras: { session_id: '{CHECKOUT_SESSION_ID}' },
     }),
     cancel_url: buildSuccessUrl({
+      baseUrl: effectiveBaseUrl,
       locale,
       slug: snapshotQuote.slug,
       query,
@@ -232,7 +240,15 @@ export async function createCheckoutForBooking({
 
   return {
     id: checkoutSession.id,
-    url: checkoutSession.url ?? buildSuccessUrl({ locale, slug: snapshotQuote.slug, query, booking: 'cancelled' }),
+    url:
+      checkoutSession.url ??
+      buildSuccessUrl({
+        baseUrl: effectiveBaseUrl,
+        locale,
+        slug: snapshotQuote.slug,
+        query,
+        booking: 'cancelled',
+      }),
   };
 }
 

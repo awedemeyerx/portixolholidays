@@ -82,6 +82,17 @@ function checkoutErrorResponse(error: unknown, locale: Locale) {
   return NextResponse.json({ error: userMessage }, { status: 400 });
 }
 
+function resolveRequestOrigin(request: Request) {
+  const forwardedProto = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
+  const forwardedHost = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
+
+  if (forwardedHost) {
+    return `${forwardedProto || 'https'}://${forwardedHost}`;
+  }
+
+  return new URL(request.url).origin;
+}
+
 export async function POST(request: Request) {
   let locale: Locale = 'de';
 
@@ -91,6 +102,7 @@ export async function POST(request: Request) {
     const parsed = checkoutPayloadSchema.parse(payload);
 
     const checkoutSession = await createCheckoutForBooking({
+      returnBaseUrl: resolveRequestOrigin(request),
       slug: parsed.slug,
       locale: parsed.locale,
       query: {
