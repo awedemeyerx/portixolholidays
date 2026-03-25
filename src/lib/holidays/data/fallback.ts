@@ -3,7 +3,7 @@ import type { FAQEntry, LegalPageRecord, PropertyRecord, SiteSettingsRecord } fr
 export const fallbackSiteSettings: SiteSettingsRecord = {
   brandName: 'Portixol Holidays',
   supportEmail: 'hola@portixolholidays.com',
-  supportPhone: '+34 971 000 000',
+  supportPhone: '+34 871 180 796',
   whatsapp: '+34 600 000 000',
   depositRate: 0.3,
   heroEyebrow: {
@@ -174,7 +174,7 @@ export const fallbackProperties: PropertyRecord[] = [
       en: '5-minute walk to the promenade',
       es: 'A 5 minutos andando del paseo',
     },
-    bedrooms: 2,
+    bedrooms: 3,
     bathrooms: 2,
     maxGuests: 4,
     heroImage: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1600&q=80',
@@ -209,9 +209,9 @@ export const fallbackProperties: PropertyRecord[] = [
       es: 'Reservar Casa Luz en Portixol',
     },
     seoDescription: {
-      de: 'Helles Haus in Portixol mit Terrasse, 2 Schlafzimmern und direktem Zugang zur Promenade.',
-      en: 'Bright Portixol home with terrace, 2 bedrooms and fast access to the promenade.',
-      es: 'Casa luminosa en Portixol con terraza, 2 dormitorios y acceso rápido al paseo.',
+      de: 'Helles Haus in Portixol mit Terrasse, 3 Schlafzimmern und direktem Zugang zur Promenade.',
+      en: 'Bright Portixol home with terrace, 3 bedrooms and fast access to the promenade.',
+      es: 'Casa luminosa en Portixol con terraza, 3 dormitorios y acceso rápido al paseo.',
     },
     blockedRanges: [
       { from: '2026-04-18', to: '2026-04-24' },
