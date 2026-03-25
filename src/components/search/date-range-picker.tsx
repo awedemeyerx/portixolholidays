@@ -305,7 +305,7 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
       </div>
 
       <div className="overflow-hidden rounded-[1.75rem] border border-ink/10 bg-white/78">
-        <div className="flex items-center justify-between border-b border-ink/8 px-4 py-3">
+        <div className="flex items-center justify-center border-b border-ink/8 px-4 py-3">
           <div className="text-sm text-ink/68">
             {invalidRange
               ? labels.invalidRange
@@ -315,31 +315,39 @@ export function DateRangePicker({ locale, checkIn, checkOut, onChange, minDate, 
                   ? labels.selectDeparture
                   : labels.selectArrival}
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setVisibleMonth((current) => addMonths(current, -1))}
-              disabled={!canGoPrev}
-              className="rounded-full border border-ink/10 px-3 py-1 text-sm text-ink transition hover:border-sea/30 hover:bg-sea/5 disabled:cursor-not-allowed disabled:opacity-35"
-            >
-              {'<'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setVisibleMonth((current) => addMonths(current, 1))}
-              className="rounded-full border border-ink/10 px-3 py-1 text-sm text-ink transition hover:border-sea/30 hover:bg-sea/5"
-            >
-              {'>'}
-            </button>
-          </div>
         </div>
 
         <div className="grid gap-6 p-4 md:grid-cols-2">
-          {monthViews.map(({ label, cells: monthCells }) => {
+          {monthViews.map(({ label, cells: monthCells }, index) => {
+            const isFirst = index === 0;
+            const isLast = index === monthViews.length - 1;
             return (
               <div key={label} className="space-y-3">
                 <div className="flex items-center justify-between">
+                  {isFirst ? (
+                    <button
+                      type="button"
+                      onClick={() => setVisibleMonth((current) => addMonths(current, -1))}
+                      disabled={!canGoPrev}
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-ink/10 text-sm text-ink transition hover:border-sea/30 hover:bg-sea/5 disabled:cursor-not-allowed disabled:opacity-35"
+                    >
+                      {'<'}
+                    </button>
+                  ) : (
+                    <span />
+                  )}
                   <h3 className="font-serif text-2xl capitalize">{label}</h3>
+                  {isLast ? (
+                    <button
+                      type="button"
+                      onClick={() => setVisibleMonth((current) => addMonths(current, 1))}
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-ink/10 text-sm text-ink transition hover:border-sea/30 hover:bg-sea/5"
+                    >
+                      {'>'}
+                    </button>
+                  ) : (
+                    <span />
+                  )}
                 </div>
 
                 <div className="grid grid-cols-7 gap-2 text-center text-[11px] uppercase tracking-[0.18em] text-mist">
