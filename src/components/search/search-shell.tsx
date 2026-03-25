@@ -279,8 +279,6 @@ export function SearchShell({
                     total: t('total'),
                     deposit: t('deposit'),
                     select: t('select'),
-                    beds: t('beds'),
-                    baths: t('baths'),
                     guestsMax: t('guestsMax'),
                   }}
                 />

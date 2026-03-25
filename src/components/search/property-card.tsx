@@ -11,8 +11,6 @@ type Props = {
     total: string;
     deposit: string;
     select: string;
-    beds: string;
-    baths: string;
     guestsMax: string;
   };
   queryString: string;
@@ -55,9 +53,7 @@ export function PropertyCard({ property, locale, labels, queryString }: Props) {
             ) : null}
           </div>
           {hasSummary ? <p className="max-w-xl text-sm leading-6 text-ink/72">{property.summary}</p> : null}
-          <div className="flex flex-wrap gap-3 text-sm text-ink/70">
-            <span>{property.bedrooms} {labels.beds}</span>
-            <span>{property.bathrooms} {labels.baths}</span>
+          <div className="text-sm text-ink/70">
             <span>{property.maxGuests} {labels.guestsMax}</span>
           </div>
         </div>

@@ -106,8 +106,6 @@ export default async function LocationDetailPage({ params }: Props) {
                 locale={locale}
                 property={property}
                 labels={{
-                  beds: messages.Search.beds,
-                  baths: messages.Search.baths,
                   guestsMax: messages.Search.guestsMax,
                   select: messages.LocationsPage.viewProperty,
                 }}

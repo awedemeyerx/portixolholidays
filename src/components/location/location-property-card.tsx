@@ -7,8 +7,6 @@ type Props = {
   locale: Locale;
   property: PropertyRecord;
   labels: {
-    beds: string;
-    baths: string;
     guestsMax: string;
     select: string;
   };
@@ -44,9 +42,7 @@ export function LocationPropertyCard({ locale, property, labels }: Props) {
             <h3 className="font-serif text-3xl leading-tight">{pickLocalized(property.title, locale)}</h3>
           </div>
           {hasSummary ? <p className="max-w-xl text-sm leading-6 text-ink/72">{pickLocalized(property.summary, locale)}</p> : null}
-          <div className="flex flex-wrap gap-3 text-sm text-ink/70">
-            <span>{property.bedrooms} {labels.beds}</span>
-            <span>{property.bathrooms} {labels.baths}</span>
+          <div className="text-sm text-ink/70">
             <span>{property.maxGuests} {labels.guestsMax}</span>
           </div>
         </div>
