@@ -73,37 +73,107 @@ export const fallbackFaqs: FAQEntry[] = [
       es: '¿De cuánto es el depósito?',
     },
     answer: {
-      de: 'In Version 1 beträgt die Online-Anzahlung 30 Prozent des Aufenthaltspreises. Der Rest wird später separat abgerechnet.',
-      en: 'In version 1 the online deposit is 30 percent of the stay total. The remaining balance is charged later.',
-      es: 'En la versión 1 el depósito online es del 30 por ciento del total de la estancia. El resto se cobra más tarde.',
+      de: 'Bei der Buchung wird eine Anzahlung von 30 % des Gesamtpreises fällig. Der Restbetrag ist spätestens 14 Tage vor Anreise per Überweisung oder vor Ort zu zahlen.',
+      en: 'A deposit of 30% of the total price is due at booking. The remaining balance must be paid by bank transfer at least 14 days before arrival, or on site.',
+      es: 'Al reservar se abona un depósito del 30 % del precio total. El resto se paga por transferencia al menos 14 días antes de la llegada, o en el alojamiento.',
     },
   },
   {
-    id: 'faq-live',
+    id: 'faq-cancellation',
     order: 2,
     question: {
-      de: 'Sind Preise und Verfügbarkeiten live?',
-      en: 'Are prices and availability live?',
-      es: '¿Los precios y la disponibilidad son en tiempo real?',
+      de: 'Was sind die Stornierungsbedingungen?',
+      en: 'What is the cancellation policy?',
+      es: '¿Cuál es la política de cancelación?',
     },
     answer: {
-      de: 'Preise und Verfügbarkeiten werden laufend aktualisiert. Vor dem Abschluss prüfen wir deine Auswahl noch einmal, damit deine Buchung verlässlich und aktuell bleibt.',
-      en: 'Prices and availability are updated continuously. Before completion, we verify your selection once more to keep your booking reliable and up to date.',
-      es: 'Los precios y la disponibilidad se actualizan de forma continua. Antes de finalizar, volvemos a comprobar tu selección para que la reserva siga siendo fiable y actual.',
+      de: 'Die Stornierungsfrist variiert je nach Objekt und ist auf der jeweiligen Detailseite angegeben. Bei kostenfreier Stornierung innerhalb der Frist wird die Anzahlung vollständig erstattet.',
+      en: 'The cancellation deadline varies by property and is shown on the relevant detail page. If you cancel within the free cancellation period, your deposit is refunded in full.',
+      es: 'El plazo de cancelación varía según el alojamiento y se indica en la página de detalle. Si cancelas dentro del plazo gratuito, el depósito se reembolsa íntegramente.',
     },
   },
   {
     id: 'faq-checkin',
     order: 3,
     question: {
-      de: 'Kann ich spät einchecken?',
-      en: 'Can I check in late?',
-      es: '¿Puedo hacer check-in tarde?',
+      de: 'Wann kann ich einchecken und auschecken?',
+      en: 'What are the check-in and check-out times?',
+      es: '¿Cuáles son las horas de check-in y check-out?',
     },
     answer: {
-      de: 'Ja, nach Abstimmung. Die genauen Check-in-Informationen erhältst du nach der Buchung per E-Mail.',
-      en: 'Yes, by arrangement. Exact check-in details are sent by email after booking.',
-      es: 'Sí, con coordinación previa. Los detalles exactos de check-in se envían por correo tras la reserva.',
+      de: 'Check-in ist ab 16:00 Uhr, Check-out bis 10:00 Uhr. Späterer Check-in ist nach Absprache möglich — kontaktiere uns einfach nach der Buchung.',
+      en: 'Check-in is from 4:00 PM, check-out by 10:00 AM. Later check-in is possible by arrangement — just contact us after booking.',
+      es: 'El check-in es a partir de las 16:00 h, el check-out hasta las 10:00 h. Es posible un check-in más tarde con coordinación previa — contáctanos tras la reserva.',
+    },
+  },
+  {
+    id: 'faq-live',
+    order: 4,
+    question: {
+      de: 'Sind Preise und Verfügbarkeit in Echtzeit?',
+      en: 'Are prices and availability shown in real time?',
+      es: '¿Los precios y la disponibilidad se muestran en tiempo real?',
+    },
+    answer: {
+      de: 'Ja. Unsere Kalender und Preise werden laufend mit dem Buchungssystem synchronisiert. Vor dem Abschluss wird deine Auswahl nochmals geprüft, damit deine Buchung aktuell bleibt.',
+      en: 'Yes. Our calendars and prices are continuously synced with the booking system. Before checkout, your selection is verified again to ensure your booking stays current.',
+      es: 'Sí. Nuestros calendarios y precios se sincronizan continuamente con el sistema de reservas. Antes de finalizar, tu selección se verifica de nuevo para que la reserva esté actualizada.',
+    },
+  },
+  {
+    id: 'faq-cleaning',
+    order: 5,
+    question: {
+      de: 'Ist die Endreinigung im Preis enthalten?',
+      en: 'Is the final cleaning included in the price?',
+      es: '¿La limpieza final está incluida en el precio?',
+    },
+    answer: {
+      de: 'Ja. Bei jedem Objekt ist eine professionelle Endreinigung inklusive. Die Reinigungsgebühr wird in der Preisaufstellung separat ausgewiesen.',
+      en: 'Yes. A professional final cleaning is included with every property. The cleaning fee is shown as a separate line item in the price breakdown.',
+      es: 'Sí. Cada alojamiento incluye una limpieza final profesional. La tarifa de limpieza aparece como partida separada en el desglose del precio.',
+    },
+  },
+  {
+    id: 'faq-pets',
+    order: 6,
+    question: {
+      de: 'Sind Haustiere erlaubt?',
+      en: 'Are pets allowed?',
+      es: '¿Se admiten mascotas?',
+    },
+    answer: {
+      de: 'Das hängt vom Objekt ab. Die Hausregeln auf der Detailseite geben Auskunft. Bei Fragen kontaktiere uns gerne vorab.',
+      en: 'It depends on the property. Check the house rules on the detail page. If in doubt, feel free to contact us beforehand.',
+      es: 'Depende del alojamiento. Consulta las normas de la casa en la página de detalle. Si tienes dudas, no dudes en contactarnos previamente.',
+    },
+  },
+  {
+    id: 'faq-parking',
+    order: 7,
+    question: {
+      de: 'Gibt es einen Parkplatz?',
+      en: 'Is there parking?',
+      es: '¿Hay aparcamiento?',
+    },
+    answer: {
+      de: 'Einige Objekte bieten einen Stellplatz oder Garagenplatz. Ob Parkmöglichkeiten vorhanden sind, steht in den Ausstattungsdetails auf der Detailseite.',
+      en: 'Some properties offer a parking space or garage. Whether parking is available is listed in the amenities section on the detail page.',
+      es: 'Algunos alojamientos disponen de plaza de aparcamiento o garaje. La disponibilidad de parking se indica en los servicios de la página de detalle.',
+    },
+  },
+  {
+    id: 'faq-airport',
+    order: 8,
+    question: {
+      de: 'Wie komme ich vom Flughafen zur Unterkunft?',
+      en: 'How do I get from the airport to the property?',
+      es: '¿Cómo llego del aeropuerto al alojamiento?',
+    },
+    answer: {
+      de: 'Der Flughafen Palma de Mallorca (PMI) liegt rund 15 Minuten von unseren Objekten entfernt. Taxis, Mietwagen und der EMT-Bus (Linie 1 Richtung Zentrum) sind direkt am Terminal verfügbar.',
+      en: 'Palma de Mallorca airport (PMI) is about 15 minutes from our properties. Taxis, rental cars and the EMT bus (line 1 towards the centre) are available right at the terminal.',
+      es: 'El aeropuerto de Palma de Mallorca (PMI) está a unos 15 minutos de nuestros alojamientos. Taxis, coches de alquiler y el autobús EMT (línea 1 dirección centro) están disponibles en la terminal.',
     },
   },
 ];
