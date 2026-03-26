@@ -129,7 +129,7 @@ No estamos obligados ni dispuestos a participar en un procedimiento de resoluci�
 ```
 
 **Files to change:**
-- `src/lib/holidays/data/fallback.ts` — replace `fallbackLegalPages[0]` (imprint) body content
+- `src/lib/holidays/data/fallback.ts` — replace body content of the entry with `slug: 'imprint'` in `fallbackLegalPages`
 
 ---
 
@@ -168,19 +168,21 @@ Predator SLU, full address and contact details (as above). Data Protection conta
 | Service | Provider | Location | Purpose | Safeguards |
 |---------|----------|----------|---------|------------|
 | Hosting & Analytics | Vercel Inc. | USA | Website hosting, cookieless analytics | DPA, Standard Contractual Clauses |
-| Database | Supabase Inc. | AWS EU (Frankfurt) | Booking data, inventory | DPA, EU data residency |
+| Database | PostgreSQL via Payload CMS | Vercel infrastructure | Booking data, property content, inventory | Managed by hosting provider (Vercel) |
 | Payments | Stripe Inc. | USA / EU | 30% deposit processing | DPA, Standard Contractual Clauses, PCI DSS |
-| Booking Management | Beds24 (Inntopia OG) | Berlin, Germany | Calendar, availability, booking creation | DPA, EU data processing |
-| Transactional Email | Brevo (Sendinblue) | Paris, France | Booking confirmation emails | DPA, EU data processing |
+| Booking Management | Beds24 | Berlin, Germany | Calendar, availability, booking creation | DPA, EU data processing |
 
-### Section 5: Cookies
+### Section 5: Cookies and Local Storage
 
-This website uses only technically necessary cookies:
+This website does not set any cookies. The language is determined from the URL path (`/de/`, `/en/`, `/es/`).
 
-| Cookie | Purpose | Duration | Legal basis |
-|--------|---------|----------|-------------|
-| Locale preference | Remembers selected language (de/en/es) | Session | Art. 6(1)(f) GDPR — legitimate interest |
-| Cookie notice dismissed | Remembers that cookie notice was acknowledged | 1 year (localStorage) | Art. 6(1)(f) GDPR — legitimate interest |
+A single localStorage entry is used:
+
+| Entry | Purpose | Duration | Legal basis |
+|-------|---------|----------|-------------|
+| `cookie-notice-dismissed` | Remembers that cookie notice was acknowledged | Persistent (localStorage) | Art. 6(1)(f) GDPR — legitimate interest |
+
+localStorage entries are not cookies — they are not sent with HTTP requests and remain only in the user's browser.
 
 No tracking cookies, no marketing cookies, no third-party cookies. Vercel Analytics is fully cookieless.
 
@@ -224,7 +226,7 @@ This website uses SSL/TLS encryption for all data transmission.
 **Content:** Written in full prose for each language (DE/EN/ES), using the structured information above. Each section uses clear headings and short paragraphs. Tables are rendered as text lists since the legal page body uses `whitespace-pre-line`.
 
 **Files to change:**
-- `src/lib/holidays/data/fallback.ts` — replace `fallbackLegalPages[1]` (privacy) body content
+- `src/lib/holidays/data/fallback.ts` — replace body content of the entry with `slug: 'privacy'` in `fallbackLegalPages`
 
 ---
 
@@ -293,7 +295,7 @@ General booking terms for the Portixol Holidays platform. Three languages.
 - If any provision is invalid, the remaining provisions continue in effect
 
 **Files to change:**
-- `src/lib/holidays/data/fallback.ts` — replace `fallbackLegalPages[2]` (terms) body content
+- `src/lib/holidays/data/fallback.ts` — replace body content of the entry with `slug: 'terms'` in `fallbackLegalPages`
 
 ---
 
