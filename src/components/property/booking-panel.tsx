@@ -106,11 +106,16 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
       .then(async (response) => {
         if (!response.ok) {
           const payload = await response.json().catch(() => ({}));
-          throw new Error(String(payload.error ?? 'Quote fetch failed'));
+          if (requestIdRef.current !== requestId) return;
+          setActiveQuote(null);
+          if (payload.error === 'min_stay') {
+            setQuoteError(t('quoteMinStay', { minStay: payload.minStay, nights: payload.nights }));
+          } else {
+            setQuoteError(t('quoteUnavailable'));
+          }
+          return;
         }
-        return response.json() as Promise<PropertyQuote>;
-      })
-      .then((nextQuote) => {
+        const nextQuote = (await response.json()) as PropertyQuote;
         if (requestIdRef.current !== requestId) return;
         setActiveQuote(nextQuote);
       })

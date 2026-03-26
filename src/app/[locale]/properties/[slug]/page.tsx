@@ -57,7 +57,8 @@ export default async function PropertyPage({ params, searchParams }: Props) {
         }
       : null;
 
-  const quote = parsed.success ? await getPropertyQuoteBySlug(slug, parsed.data) : null;
+  const quoteResult = parsed.success ? await getPropertyQuoteBySlug(slug, parsed.data) : null;
+  const quote = quoteResult?.ok ? quoteResult.quote : null;
   const calendar = await getCalendarSnapshot(property);
   const bookingState = typeof rawSearchParams.booking === 'string' ? rawSearchParams.booking : null;
   const hasLocationLabel = Boolean(localized.locationLabel.trim());

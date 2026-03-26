@@ -46,6 +46,7 @@
     "checkingQuote": "Aktueller Preis und Verfügbarkeit werden geladen.",
     "quoteMissing": "Wähle hier direkt deinen Zeitraum, um Preis und Verfügbarkeit zu sehen.",
     "quoteUnavailable": "Für diese Auswahl konnten wir aktuell kein buchbares Angebot ermitteln. Bitte probiere einen anderen Zeitraum.",
+    "quoteMinStay": "Dieses Objekt erfordert einen Mindestaufenthalt von {minStay} Nächten. Du hast {nights} gewählt.",
     "staySelection": "Zeitraum wählen",
     "stayPrompt": "Du kannst deinen Aufenthalt direkt hier auf der Objektseite auswählen oder anpassen.",
     "checkAvailability": "Preis prüfen",

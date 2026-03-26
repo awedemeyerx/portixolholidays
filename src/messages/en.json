@@ -46,6 +46,7 @@
     "checkingQuote": "Loading current price and availability.",
     "quoteMissing": "Choose your stay right here to see pricing and continue.",
     "quoteUnavailable": "We could not find a bookable offer for this selection right now. Please try different dates.",
+    "quoteMinStay": "This property requires a minimum stay of {minStay} nights. You selected {nights}.",
     "staySelection": "Choose your stay",
     "stayPrompt": "You can select or adjust your stay directly on this property page.",
     "checkAvailability": "Check price",

@@ -46,6 +46,7 @@
     "checkingQuote": "Cargando precio y disponibilidad actuales.",
     "quoteMissing": "Elige aquí mismo tu estancia para ver precio y disponibilidad.",
     "quoteUnavailable": "Ahora mismo no hemos podido obtener una oferta reservable para esta selección. Prueba con otras fechas.",
+    "quoteMinStay": "Este alojamiento requiere una estancia mínima de {minStay} noches. Has seleccionado {nights}.",
     "staySelection": "Elegir estancia",
     "stayPrompt": "Puedes seleccionar o ajustar tu estancia directamente en esta ficha.",
     "checkAvailability": "Ver precio",

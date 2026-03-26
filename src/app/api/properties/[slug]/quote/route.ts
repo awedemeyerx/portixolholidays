@@ -21,12 +21,18 @@ export async function GET(request: Request, context: Context) {
     return NextResponse.json({ error: 'Invalid quote query.' }, { status: 400 });
   }
 
-  const quote = await getPropertyQuoteBySlug(slug, parsed.data);
-  if (!quote) {
+  const result = await getPropertyQuoteBySlug(slug, parsed.data);
+  if (!result.ok) {
+    if (result.reason === 'min_stay') {
+      return NextResponse.json(
+        { error: 'min_stay', minStay: result.minStay, nights: result.nights },
+        { status: 400 },
+      );
+    }
     return NextResponse.json({ error: 'Property quote not found.' }, { status: 404 });
   }
 
-  return NextResponse.json(quote, {
+  return NextResponse.json(result.quote, {
     headers: {
       'Cache-Control': 'public, max-age=0, s-maxage=120, stale-while-revalidate=600',
     },

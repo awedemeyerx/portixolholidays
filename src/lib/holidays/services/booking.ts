@@ -4,7 +4,7 @@ import { getBookingSession, saveBookingSession, updateBookingSession } from '../
 import { getPropertyBySlug } from './cms';
 import { getPropertyQuoteBySlug } from './quote';
 import { toMinorUnits } from '../dates';
-import type { BookingSessionRecord, GuestDetails, Locale, SearchQuery } from '../types';
+import type { BookingSessionRecord, GuestDetails, Locale, PropertyQuote, SearchQuery } from '../types';
 
 type CheckoutStartResult = {
   id: string;
@@ -76,7 +76,7 @@ function buildBookingSession({
   query: SearchQuery;
   guest: GuestDetails;
   property: NonNullable<Awaited<ReturnType<typeof getPropertyBySlug>>>;
-  quote: NonNullable<Awaited<ReturnType<typeof getPropertyQuoteBySlug>>>;
+  quote: PropertyQuote;
   status: BookingSessionRecord['status'];
 }): BookingSessionRecord {
   return {
@@ -109,8 +109,8 @@ export async function createCheckoutForBooking({
   query: SearchQuery;
   guest: GuestDetails;
 }): Promise<CheckoutStartResult> {
-  const snapshotQuote = await getPropertyQuoteBySlug(slug, query);
-  if (!snapshotQuote || !snapshotQuote.available) {
+  const snapshotResult = await getPropertyQuoteBySlug(slug, query);
+  if (!snapshotResult.ok || !snapshotResult.quote.available) {
     throw new Error('This property is no longer available for the selected dates.');
   }
   const property = await getPropertyBySlug(slug, locale);
@@ -128,7 +128,7 @@ export async function createCheckoutForBooking({
     query,
     guest,
     property,
-    quote: snapshotQuote,
+    quote: snapshotResult.quote,
     status: directMode ? 'booking_confirmed' : 'awaiting_payment',
   });
 
@@ -139,8 +139,8 @@ export async function createCheckoutForBooking({
       throw new Error('Beds24 is not configured.');
     }
 
-    const liveQuote = await getPropertyQuoteBySlug(slug, query, { forceLive: true });
-    if (!liveQuote || !liveQuote.available) {
+    const liveResult = await getPropertyQuoteBySlug(slug, query, { forceLive: true });
+    if (!liveResult.ok || !liveResult.quote.available) {
       await updateBookingSession(id, (current) => ({
         ...current,
         updatedAt: new Date().toISOString(),
@@ -154,7 +154,7 @@ export async function createCheckoutForBooking({
     try {
       beds24BookingId = await createBeds24Booking({
         ...session,
-        quote: liveQuote,
+        quote: liveResult.quote,
       });
     } catch (error) {
       await updateBookingSession(session.id, (current) => ({
@@ -171,7 +171,7 @@ export async function createCheckoutForBooking({
       updatedAt: new Date().toISOString(),
       status: 'booking_confirmed',
       beds24BookingId,
-      quote: liveQuote,
+      quote: liveResult.quote,
     }));
 
     return {
@@ -179,7 +179,7 @@ export async function createCheckoutForBooking({
       url: buildSuccessUrl({
         baseUrl: effectiveBaseUrl,
         locale,
-        slug: liveQuote.slug,
+        slug: liveResult.quote.slug,
         query,
         booking: 'confirmed',
         extras: {
@@ -199,17 +199,17 @@ export async function createCheckoutForBooking({
     customer_email: guest.email,
     metadata: {
       bookingSessionId: id,
-      propertySlug: snapshotQuote.slug,
+      propertySlug: snapshotResult.quote.slug,
       locale,
     },
     line_items: [
       {
         quantity: 1,
         price_data: {
-          currency: snapshotQuote.quote.currency.toLowerCase(),
-          unit_amount: toMinorUnits(snapshotQuote.quote.depositAmount),
+          currency: snapshotResult.quote.quote.currency.toLowerCase(),
+          unit_amount: toMinorUnits(snapshotResult.quote.quote.depositAmount),
           product_data: {
-            name: `${snapshotQuote.title} deposit`,
+            name: `${snapshotResult.quote.title} deposit`,
             description: `${query.checkIn} -> ${query.checkOut} · ${splitName(guest)}`,
           },
         },
@@ -218,7 +218,7 @@ export async function createCheckoutForBooking({
     success_url: buildSuccessUrl({
       baseUrl: effectiveBaseUrl,
       locale,
-      slug: snapshotQuote.slug,
+      slug: snapshotResult.quote.slug,
       query,
       booking: 'success',
       extras: { session_id: '{CHECKOUT_SESSION_ID}' },
@@ -226,7 +226,7 @@ export async function createCheckoutForBooking({
     cancel_url: buildSuccessUrl({
       baseUrl: effectiveBaseUrl,
       locale,
-      slug: snapshotQuote.slug,
+      slug: snapshotResult.quote.slug,
       query,
       booking: 'cancelled',
     }),
@@ -245,7 +245,7 @@ export async function createCheckoutForBooking({
       buildSuccessUrl({
         baseUrl: effectiveBaseUrl,
         locale,
-        slug: snapshotQuote.slug,
+        slug: snapshotResult.quote.slug,
         query,
         booking: 'cancelled',
       }),
@@ -272,15 +272,15 @@ export async function finalizeStripeCheckout(checkoutSession: Stripe.Checkout.Se
 
   if (session.status === 'booking_confirmed') return;
 
-  const liveQuote = await getPropertyQuoteBySlug(session.propertySlug, session.query, { forceLive: true });
+  const liveResult = await getPropertyQuoteBySlug(session.propertySlug, session.query, { forceLive: true });
   const paymentIntentId =
     typeof checkoutSession.payment_intent === 'string' ? checkoutSession.payment_intent : undefined;
 
   if (
-    !liveQuote ||
-    !liveQuote.available ||
-    toMinorUnits(liveQuote.quote.totalPrice) !== toMinorUnits(session.quote.quote.totalPrice) ||
-    toMinorUnits(liveQuote.quote.depositAmount) !== toMinorUnits(session.quote.quote.depositAmount)
+    !liveResult.ok ||
+    !liveResult.quote.available ||
+    toMinorUnits(liveResult.quote.quote.totalPrice) !== toMinorUnits(session.quote.quote.totalPrice) ||
+    toMinorUnits(liveResult.quote.quote.depositAmount) !== toMinorUnits(session.quote.quote.depositAmount)
   ) {
     if (paymentIntentId) {
       await refundOnConflict(stripe, paymentIntentId);
@@ -301,7 +301,7 @@ export async function finalizeStripeCheckout(checkoutSession: Stripe.Checkout.Se
     try {
       beds24BookingId = await createBeds24Booking({
         ...session,
-        quote: liveQuote,
+        quote: liveResult.quote,
         stripePaymentIntentId: paymentIntentId,
       });
     } catch (error) {
@@ -322,7 +322,7 @@ export async function finalizeStripeCheckout(checkoutSession: Stripe.Checkout.Se
     status: 'booking_confirmed',
     stripePaymentIntentId: paymentIntentId,
     beds24BookingId,
-    quote: liveQuote,
+    quote: liveResult.quote,
   }));
 }
 

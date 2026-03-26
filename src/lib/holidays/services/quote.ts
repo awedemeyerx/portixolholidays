@@ -6,6 +6,10 @@ import { getInventorySnapshot, quoteFromInventorySnapshot } from './inventory-sn
 import { getBeds24OfferMap, toPriceBreakdownFromOffer } from './offers';
 import type { Beds24Offer, PropertyQuote, SearchQuery } from '../types';
 
+export type QuoteResult =
+  | { ok: true; quote: PropertyQuote }
+  | { ok: false; reason: 'not_found' | 'min_stay' | 'unavailable'; minStay?: number; nights?: number };
+
 function toLiveQuote(
   propertyId: string,
   localeData: ReturnType<typeof localizeProperty>,
@@ -39,14 +43,18 @@ export async function getPropertyQuoteBySlug(
   slug: string,
   query: SearchQuery,
   options?: { forceLive?: boolean },
-) {
+): Promise<QuoteResult> {
   const property = await getPropertyBySlug(slug, query.locale);
-  if (!property) return null;
-  if (query.guests > property.maxGuests) return null;
+  if (!property) return { ok: false, reason: 'not_found' };
+  if (query.guests > property.maxGuests) return { ok: false, reason: 'not_found' };
 
   const localized = localizeProperty(property, query.locale);
   const nights = diffNights(query.checkIn, query.checkOut);
-  if (nights <= 0) return null;
+  if (nights <= 0) return { ok: false, reason: 'not_found' };
+
+  if (nights < property.pricing.minStay) {
+    return { ok: false, reason: 'min_stay', minStay: property.pricing.minStay, nights };
+  }
 
   if (options?.forceLive) {
     let offer: Beds24Offer = fallbackOffer(property, query);
@@ -78,12 +86,12 @@ export async function getPropertyQuoteBySlug(
     liveQuote.maxGuests = property.maxGuests;
     liveQuote.available = offer.available;
 
-    return liveQuote;
+    return { ok: true, quote: liveQuote };
   }
 
   const snapshot = await getInventorySnapshot(property);
   const priced = quoteFromInventorySnapshot(property, query, snapshot);
-  if (!priced) return null;
+  if (!priced) return { ok: false, reason: 'unavailable' };
 
   const cachedOffers = await getBeds24OfferMap(query, [property]);
   const offer = cachedOffers.get(property.beds24RoomId);
@@ -92,24 +100,27 @@ export async function getPropertyQuoteBySlug(
     : priced.quote;
 
   return {
-    propertyId: property.id,
-    slug: localized.slug,
-    title: localized.title,
-    summary: localized.summary,
-    description: localized.description,
-    heroImage: property.heroImage,
-    gallery: property.gallery,
-    locationLabel: localized.locationLabel,
-    distanceLabel: localized.distanceLabel,
-    bedrooms: property.bedrooms,
-    bathrooms: property.bathrooms,
-    maxGuests: property.maxGuests,
-    highlights: localized.highlights,
-    amenities: localized.amenities,
-    houseRules: localized.houseRules,
-    cancellationSummary: localized.cancellationSummary,
-    quote: quoteBreakdown,
-    available: true,
-    locale: query.locale,
-  } satisfies PropertyQuote;
+    ok: true,
+    quote: {
+      propertyId: property.id,
+      slug: localized.slug,
+      title: localized.title,
+      summary: localized.summary,
+      description: localized.description,
+      heroImage: property.heroImage,
+      gallery: property.gallery,
+      locationLabel: localized.locationLabel,
+      distanceLabel: localized.distanceLabel,
+      bedrooms: property.bedrooms,
+      bathrooms: property.bathrooms,
+      maxGuests: property.maxGuests,
+      highlights: localized.highlights,
+      amenities: localized.amenities,
+      houseRules: localized.houseRules,
+      cancellationSummary: localized.cancellationSummary,
+      quote: quoteBreakdown,
+      available: true,
+      locale: query.locale,
+    } satisfies PropertyQuote,
+  };
 }
