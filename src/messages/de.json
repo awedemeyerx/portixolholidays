@@ -109,5 +109,10 @@
     "imprint": "Impressum",
     "privacy": "Datenschutz",
     "terms": "AGB"
+  },
+  "Cookie": {
+    "notice": "Diese Website verwendet nur technisch notwendige Cookies.",
+    "learnMore": "Datenschutz",
+    "dismiss": "Verstanden"
   }
 }

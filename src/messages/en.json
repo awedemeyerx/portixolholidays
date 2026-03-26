@@ -109,5 +109,10 @@
     "imprint": "Imprint",
     "privacy": "Privacy",
     "terms": "Terms"
+  },
+  "Cookie": {
+    "notice": "This website uses only technically necessary cookies.",
+    "learnMore": "Privacy policy",
+    "dismiss": "Understood"
   }
 }

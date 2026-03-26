@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
 import { notFound } from 'next/navigation';
+import { CookieBanner } from '@/components/cookie-banner';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
 import { safeLocale } from '@/lib/holidays/locale';
@@ -69,6 +70,7 @@ export default async function LocaleLayout({
             terms: settings.legalLinks.terms,
           }}
         />
+        <CookieBanner />
       </div>
     </NextIntlClientProvider>
   );
