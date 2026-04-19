@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { LocationCard } from '@/components/location/location-card';
 import { localizeSiteSettings } from '@/lib/holidays/localize';
 import { safeLocale } from '@/lib/holidays/locale';
-import { localeAlternates } from '@/lib/holidays/seo';
+import { localeAlternates, BASE_URL } from '@/lib/holidays/seo';
 import { getFeaturedLocations, getSiteSettings } from '@/lib/holidays/services/cms';
 import { loadMessages } from '@/lib/messages';
 
@@ -16,10 +16,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const messages = await loadMessages(locale);
   const siteSettings = localizeSiteSettings(await getSiteSettings(), locale);
 
+  const title = `${messages.LocationsPage.title} | ${siteSettings.brandName}`;
+  const description = messages.LocationsPage.intro;
   return {
-    title: `${messages.LocationsPage.title} | ${siteSettings.brandName}`,
-    description: messages.LocationsPage.intro,
+    title,
+    description,
     alternates: localeAlternates('/locations'),
+    openGraph: { title, description, type: 'website', url: `${BASE_URL}/${locale}/locations`, siteName: 'Portixol Holidays', locale },
+    twitter: { card: 'summary_large_image', title, description },
   };
 }
 

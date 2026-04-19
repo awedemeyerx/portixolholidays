@@ -1,9 +1,46 @@
+import type { Metadata } from 'next';
 import { SearchShell } from '@/components/search/search-shell';
 import { localizeSiteSettings, pickLocalized } from '@/lib/holidays/localize';
 import { safeLocale } from '@/lib/holidays/locale';
+import { localeAlternates, BASE_URL } from '@/lib/holidays/seo';
 import { searchProperties, getSearchCalendarSnapshots } from '@/lib/holidays/services/search';
 import { getFaqs, getFeaturedLocations, getFeaturedProperties, getLocationOptions, getSiteSettings } from '@/lib/holidays/services/cms';
 import { searchQuerySchema } from '@/lib/holidays/validation';
+
+const descriptions: Record<string, string> = {
+  de: 'Handverlesene Ferienhäuser in Portixol, El Molinar und Port d\'Andratx. Prüfe freie Termine sofort und reserviere deinen Traumurlaub auf Mallorca komfortabel online.',
+  en: 'Handpicked holiday homes in Portixol, El Molinar and Port d\'Andratx. Check availability instantly and book your dream Mallorca holiday comfortably online.',
+  es: 'Casas de vacaciones seleccionadas en Portixol, El Molinar y Port d\'Andratx. Consulta disponibilidad al instante y reserva tus vacaciones soñadas en Mallorca.',
+};
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale: rawLocale } = await params;
+  const locale = safeLocale(rawLocale);
+  const description = descriptions[locale] || descriptions.de;
+
+  return {
+    title: { absolute: 'Portixol Holidays — Mallorca Holiday Rentals' },
+    description,
+    alternates: localeAlternates(),
+    openGraph: {
+      title: 'Portixol Holidays — Mallorca Holiday Rentals',
+      description,
+      type: 'website',
+      url: `${BASE_URL}/${locale}`,
+      siteName: 'Portixol Holidays',
+      locale,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: 'Portixol Holidays — Mallorca Holiday Rentals',
+      description,
+    },
+  };
+}
 
 export default async function LocaleHomePage({
   params,

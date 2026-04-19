@@ -5,7 +5,7 @@ import { PropertyGallery } from '@/components/property/property-gallery';
 import { formatMoney } from '@/lib/holidays/dates';
 import { localizeProperty } from '@/lib/holidays/localize';
 import { safeLocale } from '@/lib/holidays/locale';
-import { localeAlternates } from '@/lib/holidays/seo';
+import { localeAlternates, BASE_URL } from '@/lib/holidays/seo';
 import { getPropertyBySlug } from '@/lib/holidays/services/cms';
 import { getPropertyQuoteBySlug } from '@/lib/holidays/services/quote';
 import { getCalendarSnapshot } from '@/lib/holidays/services/search';
@@ -24,10 +24,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!property) return {};
   const localized = localizeProperty(property, locale);
 
+  const images = property.heroImage ? [property.heroImage] : [];
   return {
     title: localized.seoTitle,
     description: localized.seoDescription,
     alternates: localeAlternates(`/properties/${localized.slug}`),
+    openGraph: {
+      title: localized.seoTitle,
+      description: localized.seoDescription,
+      type: 'website',
+      url: `${BASE_URL}/${locale}/properties/${localized.slug}`,
+      siteName: 'Portixol Holidays',
+      locale,
+      ...(images.length && { images }),
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: localized.seoTitle,
+      description: localized.seoDescription,
+      ...(images.length && { images }),
+    },
   };
 }
 

@@ -5,7 +5,7 @@ import { CookieBanner } from '@/components/cookie-banner';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
 import { safeLocale } from '@/lib/holidays/locale';
-import { localeAlternates } from '@/lib/holidays/seo';
+import { localeAlternates, BASE_URL } from '@/lib/holidays/seo';
 import type { Locale } from '@/lib/holidays/types';
 import { loadMessages } from '@/lib/messages';
 import { getSiteSettings } from '@/lib/holidays/services/cms';
@@ -23,10 +23,24 @@ export async function generateMetadata({
   const { locale: rawLocale } = await params;
   const locale = safeLocale(rawLocale);
   const settings = localizeSiteSettings(await getSiteSettings(), locale);
+  const description = settings.heroSubtitle;
   return {
     title: settings.brandName,
-    description: settings.heroSubtitle,
+    description,
     alternates: localeAlternates(),
+    openGraph: {
+      title: settings.brandName,
+      description,
+      type: 'website',
+      url: `${BASE_URL}/${locale}`,
+      siteName: 'Portixol Holidays',
+      locale,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: settings.brandName,
+      description,
+    },
   };
 }
 
