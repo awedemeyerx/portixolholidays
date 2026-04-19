@@ -1,5 +1,5 @@
 ---
-name: seo-audit
+name: seo-check
 description: Run SEO audit on current project or all projects. Checks robots.txt, sitemap, hreflang, meta descriptions, OG tags, canonical URLs, structured data, and more. Runs code analysis and live URL verification. Use when user says "SEO audit", "check SEO", "seo-audit", or wants to find/fix SEO issues.
 ---
 
