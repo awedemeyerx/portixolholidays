@@ -4,10 +4,11 @@ import { localizeProperty } from '../localize';
 import { getPropertyBySlug } from './cms';
 import { getInventorySnapshot, quoteFromInventorySnapshot } from './inventory-snapshots';
 import { getBeds24OfferMap, toPriceBreakdownFromOffer } from './offers';
+import { applyVoucherToBreakdown, validateVoucher, type VoucherValidationError } from './vouchers';
 import type { Beds24Offer, PropertyQuote, SearchQuery } from '../types';
 
 export type QuoteResult =
-  | { ok: true; quote: PropertyQuote }
+  | { ok: true; quote: PropertyQuote; voucherError?: VoucherValidationError }
   | { ok: false; reason: 'not_found' | 'min_stay' | 'unavailable'; minStay?: number; nights?: number };
 
 function toLiveQuote(
@@ -42,7 +43,7 @@ function toLiveQuote(
 export async function getPropertyQuoteBySlug(
   slug: string,
   query: SearchQuery,
-  options?: { forceLive?: boolean },
+  options?: { forceLive?: boolean; voucherCode?: string },
 ): Promise<QuoteResult> {
   const property = await getPropertyBySlug(slug, query.locale);
   if (!property) return { ok: false, reason: 'not_found' };
@@ -73,12 +74,16 @@ export async function getPropertyQuoteBySlug(
       }
     }
 
-    const liveQuote = toLiveQuote(
-      property.id,
-      localized,
-      query.locale,
-      toPriceBreakdownFromOffer(property, query, offer),
-    );
+    const liveBreakdown = toPriceBreakdownFromOffer(property, query, offer);
+    const liveApplied = await maybeApplyVoucher(liveBreakdown, {
+      code: options?.voucherCode,
+      propertyId: property.id,
+      depositRate: property.pricing.depositRate,
+      nights,
+      checkIn: query.checkIn,
+    });
+
+    const liveQuote = toLiveQuote(property.id, localized, query.locale, liveApplied.breakdown);
     liveQuote.heroImage = property.heroImage;
     liveQuote.gallery = property.gallery;
     liveQuote.bedrooms = property.bedrooms;
@@ -86,7 +91,7 @@ export async function getPropertyQuoteBySlug(
     liveQuote.maxGuests = property.maxGuests;
     liveQuote.available = offer.available;
 
-    return { ok: true, quote: liveQuote };
+    return { ok: true, quote: liveQuote, voucherError: liveApplied.voucherError };
   }
 
   const snapshot = await getInventorySnapshot(property);
@@ -95,12 +100,21 @@ export async function getPropertyQuoteBySlug(
 
   const cachedOffers = await getBeds24OfferMap(query, [property]);
   const offer = cachedOffers.get(property.beds24RoomId);
-  const quoteBreakdown = offer?.available
+  const baseBreakdown = offer?.available
     ? toPriceBreakdownFromOffer(property, query, offer)
     : priced.quote;
 
+  const applied = await maybeApplyVoucher(baseBreakdown, {
+    code: options?.voucherCode,
+    propertyId: property.id,
+    depositRate: property.pricing.depositRate,
+    nights,
+    checkIn: query.checkIn,
+  });
+
   return {
     ok: true,
+    voucherError: applied.voucherError,
     quote: {
       propertyId: property.id,
       slug: localized.slug,
@@ -118,9 +132,40 @@ export async function getPropertyQuoteBySlug(
       amenities: localized.amenities,
       houseRules: localized.houseRules,
       cancellationSummary: localized.cancellationSummary,
-      quote: quoteBreakdown,
+      quote: applied.breakdown,
       available: true,
       locale: query.locale,
     } satisfies PropertyQuote,
   };
+}
+
+type ApplyVoucherContext = {
+  code?: string;
+  propertyId: string;
+  depositRate: number;
+  nights: number;
+  checkIn: string;
+};
+
+async function maybeApplyVoucher(
+  breakdown: PropertyQuote['quote'],
+  ctx: ApplyVoucherContext,
+): Promise<{ breakdown: PropertyQuote['quote']; voucherError?: VoucherValidationError }> {
+  const code = ctx.code?.trim();
+  if (!code) return { breakdown };
+
+  const validation = await validateVoucher({
+    code,
+    propertyId: ctx.propertyId,
+    nights: ctx.nights,
+    subtotal: breakdown.subtotal,
+    checkIn: ctx.checkIn,
+  });
+
+  if (!validation.ok) {
+    return { breakdown, voucherError: validation.reason };
+  }
+
+  const { breakdown: updated } = applyVoucherToBreakdown(breakdown, validation.voucher, ctx.depositRate);
+  return { breakdown: updated };
 }

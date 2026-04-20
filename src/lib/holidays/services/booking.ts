@@ -3,6 +3,7 @@ import { createBeds24Booking, isBeds24Configured } from '../beds24/client';
 import { getBookingSession, saveBookingSession, updateBookingSession } from '../cache/booking-sessions';
 import { getPropertyBySlug } from './cms';
 import { getPropertyQuoteBySlug } from './quote';
+import { incrementVoucherUsage } from './vouchers';
 import { toMinorUnits } from '../dates';
 import type { BookingSessionRecord, GuestDetails, Locale, PropertyQuote, SearchQuery } from '../types';
 
@@ -49,15 +50,27 @@ function buildSuccessUrl({
   booking: 'success' | 'confirmed' | 'cancelled';
   extras?: Record<string, string>;
 }) {
+  if (booking === 'cancelled') {
+    const params = new URLSearchParams({
+      checkIn: query.checkIn,
+      checkOut: query.checkOut,
+      guests: String(query.guests),
+      booking,
+      ...extras,
+    });
+    return `${baseUrl}/${locale}/properties/${slug}?${params.toString()}`;
+  }
+
   const params = new URLSearchParams({
+    slug,
     checkIn: query.checkIn,
     checkOut: query.checkOut,
     guests: String(query.guests),
-    booking,
+    status: booking,
     ...extras,
   });
 
-  return `${baseUrl}/${locale}/properties/${slug}?${params.toString()}`;
+  return `${baseUrl}/${locale}/booking/confirmed?${params.toString()}`;
 }
 
 function buildBookingSession({
@@ -102,14 +115,16 @@ export async function createCheckoutForBooking({
   locale,
   query,
   guest,
+  voucherCode,
 }: {
   returnBaseUrl?: string;
   slug: string;
   locale: Locale;
   query: SearchQuery;
   guest: GuestDetails;
+  voucherCode?: string;
 }): Promise<CheckoutStartResult> {
-  const snapshotResult = await getPropertyQuoteBySlug(slug, query);
+  const snapshotResult = await getPropertyQuoteBySlug(slug, query, { voucherCode });
   if (!snapshotResult.ok || !snapshotResult.quote.available) {
     throw new Error('This property is no longer available for the selected dates.');
   }
@@ -139,7 +154,7 @@ export async function createCheckoutForBooking({
       throw new Error('Beds24 is not configured.');
     }
 
-    const liveResult = await getPropertyQuoteBySlug(slug, query, { forceLive: true });
+    const liveResult = await getPropertyQuoteBySlug(slug, query, { forceLive: true, voucherCode });
     if (!liveResult.ok || !liveResult.quote.available) {
       await updateBookingSession(id, (current) => ({
         ...current,
@@ -173,6 +188,10 @@ export async function createCheckoutForBooking({
       beds24BookingId,
       quote: liveResult.quote,
     }));
+
+    if (liveResult.quote.quote.voucher?.id) {
+      await incrementVoucherUsage(liveResult.quote.quote.voucher.id);
+    }
 
     return {
       id,
@@ -272,7 +291,10 @@ export async function finalizeStripeCheckout(checkoutSession: Stripe.Checkout.Se
 
   if (session.status === 'booking_confirmed') return;
 
-  const liveResult = await getPropertyQuoteBySlug(session.propertySlug, session.query, { forceLive: true });
+  const liveResult = await getPropertyQuoteBySlug(session.propertySlug, session.query, {
+    forceLive: true,
+    voucherCode: session.quote.quote.voucher?.code,
+  });
   const paymentIntentId =
     typeof checkoutSession.payment_intent === 'string' ? checkoutSession.payment_intent : undefined;
 
@@ -324,6 +346,10 @@ export async function finalizeStripeCheckout(checkoutSession: Stripe.Checkout.Se
     beds24BookingId,
     quote: liveResult.quote,
   }));
+
+  if (liveResult.quote.quote.voucher?.id) {
+    await incrementVoucherUsage(liveResult.quote.quote.voucher.id);
+  }
 }
 
 export async function constructStripeEvent(body: string, signature: string) {

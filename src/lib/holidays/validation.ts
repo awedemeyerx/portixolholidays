@@ -41,4 +41,5 @@ export const checkoutPayloadSchema = z.object({
   notes: z.string().max(1500).optional().or(z.literal('')),
   acceptedTerms: z.literal(true),
   acceptedPrivacy: z.literal(true),
+  voucherCode: z.string().trim().min(1).max(64).optional().or(z.literal('')),
 });

@@ -526,6 +526,18 @@ export async function createBeds24Booking(session: BookingSessionRecord) {
           },
         ]
       : []),
+    ...(session.quote.quote.voucher && session.quote.quote.voucher.discountAmount > 0
+      ? [
+          {
+            type: 'charge',
+            description: `Voucher ${session.quote.quote.voucher.code}`,
+            status: 'Discount',
+            qty: 1,
+            amount: -Math.abs(session.quote.quote.voucher.discountAmount),
+            vatRate: 0,
+          },
+        ]
+      : []),
     ...((session.stripePaymentIntentId || session.stripeSessionId) && depositAmount > 0
       ? [
           {
@@ -539,6 +551,23 @@ export async function createBeds24Booking(session: BookingSessionRecord) {
         ]
       : []),
   ];
+
+  const bookingInfoItems: Array<{ code: string; text?: string }> = [{ code: 'DIRECT' }];
+  if (session.stripePaymentIntentId || session.stripeSessionId) {
+    bookingInfoItems.push({ code: 'STRIPE', text: session.stripePaymentIntentId ?? session.stripeSessionId ?? '' });
+  }
+  const appliedVoucher = session.quote.quote.voucher;
+  if (appliedVoucher) {
+    bookingInfoItems.push({
+      code: 'VOUCHER',
+      text: `${appliedVoucher.code} (-${appliedVoucher.discountAmount.toFixed(2)} ${session.quote.quote.currency})`,
+    });
+  }
+
+  const voucherNote = appliedVoucher
+    ? `Voucher ${appliedVoucher.code}: -${appliedVoucher.discountAmount.toFixed(2)} ${session.quote.quote.currency}`
+    : '';
+  const commentsParts = [session.guest.notes || '', voucherNote].filter(Boolean);
 
   const body = [
     {
@@ -560,7 +589,8 @@ export async function createBeds24Booking(session: BookingSessionRecord) {
       tax: 0,
       rateDescription: rateDescription.join(' · '),
       invoiceItems,
-      comments: session.guest.notes || '',
+      infoItems: bookingInfoItems,
+      comments: commentsParts.join(' | '),
       referer: 'Portixol Holidays',
       status: 'confirmed',
     },

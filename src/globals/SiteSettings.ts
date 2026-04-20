@@ -28,6 +28,12 @@ export const SiteSettings: GlobalConfig = {
       name: 'depositRate',
       type: 'number',
       defaultValue: 0.3,
+      min: 0,
+      max: 1,
+      admin: {
+        description:
+          'Global deposit share fallback (0.3 = 30%). Per-property depositRate overrides this. Must match the Beds24 payment rule for DIRECT bookings.',
+      },
     },
     localizedText('heroEyebrow', 'Hero Eyebrow'),
     localizedTextarea('heroTitle', 'Hero Title'),

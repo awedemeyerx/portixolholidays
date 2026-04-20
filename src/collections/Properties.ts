@@ -97,7 +97,18 @@ export const Properties: CollectionConfig = {
         { name: 'cleaningFee', type: 'number', required: true },
         { name: 'taxes', type: 'number', required: true },
         { name: 'minStay', type: 'number', required: true },
-        { name: 'depositRate', type: 'number', required: true, defaultValue: 0.3 },
+        {
+          name: 'depositRate',
+          type: 'number',
+          required: true,
+          defaultValue: 0.3,
+          min: 0,
+          max: 1,
+          admin: {
+            description:
+              'Deposit share (0.3 = 30%, 0.5 = 50%). Applied to Stripe checkout and sent as deposit to Beds24. Should match the Beds24 payment rule for DIRECT bookings (e.g. "Direkt 50/50" = 0.5).',
+          },
+        },
       ],
     },
     localizedTextarea('cancellationSummary', 'Cancellation Summary'),

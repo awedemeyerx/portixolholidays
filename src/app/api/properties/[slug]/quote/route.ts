@@ -21,7 +21,8 @@ export async function GET(request: Request, context: Context) {
     return NextResponse.json({ error: 'Invalid quote query.' }, { status: 400 });
   }
 
-  const result = await getPropertyQuoteBySlug(slug, parsed.data);
+  const voucherCode = searchParams.get('voucher') ?? undefined;
+  const result = await getPropertyQuoteBySlug(slug, parsed.data, { voucherCode });
   if (!result.ok) {
     if (result.reason === 'min_stay') {
       return NextResponse.json(
@@ -32,9 +33,12 @@ export async function GET(request: Request, context: Context) {
     return NextResponse.json({ error: 'Property quote not found.' }, { status: 404 });
   }
 
-  return NextResponse.json(result.quote, {
-    headers: {
-      'Cache-Control': 'public, max-age=0, s-maxage=120, stale-while-revalidate=600',
+  return NextResponse.json(
+    { ...result.quote, voucherError: result.voucherError ?? null },
+    {
+      headers: {
+        'Cache-Control': voucherCode ? 'no-store' : 'public, max-age=0, s-maxage=120, stale-while-revalidate=600',
+      },
     },
-  });
+  );
 }

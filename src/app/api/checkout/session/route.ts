@@ -120,6 +120,7 @@ export async function POST(request: Request) {
         acceptedTerms: parsed.acceptedTerms,
         acceptedPrivacy: parsed.acceptedPrivacy,
       },
+      voucherCode: parsed.voucherCode || undefined,
     });
 
     return NextResponse.json({ id: checkoutSession.id, url: checkoutSession.url });

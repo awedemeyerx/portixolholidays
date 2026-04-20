@@ -51,6 +51,10 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
     acceptedTerms: false,
     acceptedPrivacy: false,
   });
+  const [voucherInput, setVoucherInput] = useState('');
+  const [appliedVoucherCode, setAppliedVoucherCode] = useState<string | null>(null);
+  const [voucherMessage, setVoucherMessage] = useState<string | null>(null);
+  const [voucherApplying, setVoucherApplying] = useState(false);
 
   useEffect(() => {
     setActiveQuote(quote);
@@ -79,6 +83,43 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
     }`;
   }
 
+  function buildQuoteUrl(
+    nextStay: { checkIn: string; checkOut: string; guests: number },
+    voucher?: string | null,
+  ) {
+    const params = new URLSearchParams({
+      checkIn: nextStay.checkIn,
+      checkOut: nextStay.checkOut,
+      guests: String(nextStay.guests),
+      locale,
+    });
+    if (voucher) params.set('voucher', voucher);
+    return `/api/properties/${encodeURIComponent(slug)}/quote?${params.toString()}`;
+  }
+
+  function voucherErrorMessage(code: string | null | undefined): string {
+    switch (code) {
+      case 'not_found':
+        return t('voucherInvalid');
+      case 'inactive':
+        return t('voucherInactive');
+      case 'not_yet_valid':
+        return t('voucherNotYetValid');
+      case 'expired':
+        return t('voucherExpired');
+      case 'max_uses_reached':
+        return t('voucherMaxUses');
+      case 'min_nights_not_met':
+        return t('voucherMinNights');
+      case 'min_subtotal_not_met':
+        return t('voucherMinSubtotal');
+      case 'property_not_eligible':
+        return t('voucherNotEligible');
+      default:
+        return t('voucherInvalid');
+    }
+  }
+
   function updateStay(nextStay: { checkIn: string; checkOut: string; guests: number; locations: string[] }) {
     const params = new URLSearchParams();
     params.set('checkIn', nextStay.checkIn);
@@ -97,12 +138,7 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
     setActiveQuote(null);
     setIsFetchingQuote(true);
 
-    void fetch(
-      `/api/properties/${encodeURIComponent(slug)}/quote?checkIn=${encodeURIComponent(nextStay.checkIn)}&checkOut=${encodeURIComponent(nextStay.checkOut)}&guests=${encodeURIComponent(String(nextStay.guests))}&locale=${encodeURIComponent(locale)}`,
-      {
-        cache: 'no-store',
-      },
-    )
+    void fetch(buildQuoteUrl(nextStay, appliedVoucherCode), { cache: 'no-store' })
       .then(async (response) => {
         if (!response.ok) {
           const payload = await response.json().catch(() => ({}));
@@ -115,9 +151,15 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
           }
           return;
         }
-        const nextQuote = (await response.json()) as PropertyQuote;
+        const nextQuote = (await response.json()) as PropertyQuote & { voucherError?: string | null };
         if (requestIdRef.current !== requestId) return;
         setActiveQuote(nextQuote);
+        if (appliedVoucherCode && nextQuote.voucherError) {
+          setAppliedVoucherCode(null);
+          setVoucherMessage(voucherErrorMessage(nextQuote.voucherError));
+        } else if (appliedVoucherCode && nextQuote.quote.voucher) {
+          setVoucherMessage(null);
+        }
       })
       .catch(() => {
         if (requestIdRef.current !== requestId) return;
@@ -132,6 +174,62 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
     startTransition(() => {
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     });
+  }
+
+  async function applyVoucher() {
+    const code = voucherInput.trim().toUpperCase();
+    if (!code || !activeQuery) return;
+    setVoucherApplying(true);
+    setVoucherMessage(null);
+
+    try {
+      const response = await fetch(buildQuoteUrl(activeQuery, code), { cache: 'no-store' });
+      const payload = (await response.json()) as PropertyQuote & { voucherError?: string | null; error?: string };
+
+      if (!response.ok) {
+        setVoucherMessage(t('voucherInvalid'));
+        return;
+      }
+
+      if (payload.voucherError) {
+        setVoucherMessage(voucherErrorMessage(payload.voucherError));
+        setAppliedVoucherCode(null);
+        return;
+      }
+
+      if (payload.quote?.voucher) {
+        setActiveQuote(payload);
+        setAppliedVoucherCode(code);
+        setVoucherInput(code);
+        setVoucherMessage(null);
+      } else {
+        setVoucherMessage(t('voucherInvalid'));
+      }
+    } catch {
+      setVoucherMessage(t('voucherInvalid'));
+    } finally {
+      setVoucherApplying(false);
+    }
+  }
+
+  async function removeVoucher() {
+    if (!activeQuery) return;
+    setVoucherApplying(true);
+    setVoucherMessage(null);
+
+    try {
+      const response = await fetch(buildQuoteUrl(activeQuery, null), { cache: 'no-store' });
+      if (response.ok) {
+        const payload = (await response.json()) as PropertyQuote;
+        setActiveQuote(payload);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setAppliedVoucherCode(null);
+      setVoucherInput('');
+      setVoucherApplying(false);
+    }
   }
 
   function clearStay() {
@@ -163,6 +261,7 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
           locale,
           ...activeQuery,
           ...bookingState,
+          voucherCode: appliedVoucherCode ?? undefined,
         }),
       });
 
@@ -250,11 +349,61 @@ export function BookingPanel({ locale, slug, selection, query, quote, calendar }
               <p>{t('subtotal')}: {formatMoney(activeQuote.quote.subtotal, activeQuote.quote.currency, locale)}</p>
               <p>{t('cleaningFee')}: {formatMoney(activeQuote.quote.cleaningFee, activeQuote.quote.currency, locale)}</p>
               <p>{t('mallorcaTouristTax')}: {formatMoney(activeQuote.quote.taxes, activeQuote.quote.currency, locale)}</p>
+              {activeQuote.quote.voucher ? (
+                <p className="text-sea">
+                  {t('voucherDiscount')} ({activeQuote.quote.voucher.code}): -{formatMoney(activeQuote.quote.voucher.discountAmount, activeQuote.quote.currency, locale)}
+                </p>
+              ) : null}
               <p className="font-medium text-ink">{t('totalLabel')}: {formatMoney(activeQuote.quote.totalPrice, activeQuote.quote.currency, locale)}</p>
               <p className="font-medium text-terracotta">
                 {t('payDeposit')}: {formatMoney(activeQuote.quote.depositAmount, activeQuote.quote.currency, locale)}
               </p>
             </div>
+          </section>
+
+          <section className="rounded-[1.5rem] bg-white/70 p-4">
+            <h3 className="label-caps text-[11px] text-sea">{t('voucherHeading')}</h3>
+            {appliedVoucherCode && activeQuote.quote.voucher ? (
+              <div className="mt-3 flex items-center justify-between gap-3 text-sm text-ink/80">
+                <span>
+                  {t('voucherApplied')}: <strong className="font-medium text-ink">{activeQuote.quote.voucher.code}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={removeVoucher}
+                  disabled={voucherApplying}
+                  className="text-xs font-medium text-terracotta underline-offset-4 hover:underline disabled:opacity-60"
+                >
+                  {t('voucherRemove')}
+                </button>
+              </div>
+            ) : (
+              <div className="mt-3 flex flex-col gap-2 md:flex-row">
+                <input
+                  type="text"
+                  inputMode="text"
+                  autoCapitalize="characters"
+                  placeholder={t('voucherPlaceholder')}
+                  className="soft-ring flex-1 rounded-2xl border-0 bg-white px-4 py-3 uppercase"
+                  value={voucherInput}
+                  onChange={(event) => {
+                    setVoucherInput(event.target.value);
+                    if (voucherMessage) setVoucherMessage(null);
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={applyVoucher}
+                  disabled={voucherApplying || !voucherInput.trim()}
+                  className="rounded-full bg-sea px-5 py-3 text-sm font-medium text-foam transition hover:bg-ink disabled:opacity-60"
+                >
+                  {voucherApplying ? t('voucherChecking') : t('voucherApply')}
+                </button>
+              </div>
+            )}
+            {voucherMessage ? (
+              <p className="mt-3 text-sm text-terracotta">{voucherMessage}</p>
+            ) : null}
           </section>
 
           <section className="space-y-4">
