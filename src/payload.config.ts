@@ -14,6 +14,7 @@ import { Media } from './collections/Media';
 import { Pages } from './collections/Pages';
 import { Properties } from './collections/Properties';
 import { Users } from './collections/Users';
+import { Vouchers } from './collections/Vouchers';
 import { SiteSettings } from './globals/SiteSettings';
 
 const filename = fileURLToPath(import.meta.url);
@@ -37,6 +38,7 @@ export default buildConfig({
     Pages,
     FAQEntries,
     LegalPages,
+    Vouchers,
   ],
   globals: [SiteSettings],
   editor: lexicalEditor(),

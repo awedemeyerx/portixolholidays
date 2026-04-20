@@ -130,6 +130,33 @@ export type SearchQuery = {
   locations?: string[];
 };
 
+export type VoucherType = 'percent' | 'absolute';
+
+export type VoucherRecord = {
+  id: string;
+  code: string;
+  label?: string;
+  type: VoucherType;
+  value: number;
+  active: boolean;
+  validFrom?: string;
+  validTo?: string;
+  maxUses?: number;
+  currentUses: number;
+  minNights?: number;
+  minSubtotal?: number;
+  propertyScope: 'all' | 'specific';
+  propertyIds: string[];
+};
+
+export type AppliedVoucher = {
+  id: string;
+  code: string;
+  type: VoucherType;
+  value: number;
+  discountAmount: number;
+};
+
 export type PriceBreakdown = {
   currency: string;
   nights: number;
@@ -139,6 +166,8 @@ export type PriceBreakdown = {
   taxes: number;
   totalPrice: number;
   depositAmount: number;
+  discountAmount?: number;
+  voucher?: AppliedVoucher;
 };
 
 export type PropertySummary = {
